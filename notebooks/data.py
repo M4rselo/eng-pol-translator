@@ -8,24 +8,20 @@ def upload_tsv(path, col_drop=None, sep='\t', header=None):
     df.columns = ['eng_text', 'pol_text']
     return df
 
-# def tokenize_snt(snt, is_eng=True):
-#     if is_eng:
-#         cases_del = r"""['"€;:()$%–—‘’°“”₳+&#=‐…−/£@-]"""
-#         tok_func = lambda x: x + ['<eos>']
-#     else:    
-#         cases_del =  r"""[]„”€…";:()'%/’$\u200b\xad–°+₳#'\[=−­`—“@«»-]"""
-#         tok_func = lambda x: ['<bos>'] + x + ['<eos>']
-        
-#     snt = re.sub(cases_del, '', snt.lower())
-#     snt = re.sub(r'\s*([.,!?])\s*', r' \1 ', snt)
-#     return tok_func(re.split(r'\s+', snt.strip()))
-
-def tokenize_eng(snt):
-    snt = re.sub(r"""['"€;:()$%–—‘’°“”₳+&#=‐…−/£@-]""", '', snt.lower())
+def tokenize_data(df, src_col, tgt_col):
+    df_proc = df.copy()
+    df_proc[src_col] = df_proc[src_col].apply(
+        tokenize_snt, 
+        regex_del = r"""['"€;:()$%–—‘’°“”₳+&#=‐…−/£@-]""",
+        tok_func = lambda x: x + ['<eos>'])
+                                             
+    df_proc[tgt_col] = df_proc[tgt_col].apply(
+        tokenize_snt, 
+        regex_del = r"""[]„”€…";:()'%/’$\u200b\xad–°+₳#'\[=−­`—“@«»-]""",
+        tok_func = lambda x: ['<bos>'] + x + ['<eos>'])
+    return df_proc
+    
+def tokenize_snt(snt, regex_del, tok_func):        
+    snt = re.sub(regex_del, '', snt.lower())
     snt = re.sub(r'\s*([.,!?])\s*', r' \1 ', snt)
-    return re.split(r'\s+', snt.strip()) + ['<eos>']
-
-def tokenize_pol(snt):
-    snt = re.sub(r"""[]„”€…";:()'%/’$\u200b\xad–°+₳#'\[=−­`—“@«»-]""", '', snt.lower())
-    snt = re.sub(r'\s*([.,!?])\s*', r' \1 ', snt)
-    return ['<bos>'] + re.split(r'\s+', snt.strip()) + ['<eos>']
+    return tok_func(re.split(r'\s+', snt.strip()))
