@@ -157,7 +157,7 @@ class TransformerDecoderBlock(nn.Module):
 
         if self.training:
             batch_size, seq_length, _ = X_dec.shape
-            dec_valid_lens = torch.arange(1, seq_length + 1, device=dec_X.device).repeat(batch_size, 1)
+            dec_valid_lens = torch.arange(1, seq_length + 1, device=X_dec.device).repeat(batch_size, 1)
         else:
             dec_valid_lens = None
 

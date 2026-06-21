@@ -1,8 +1,10 @@
 import torch
+import Data
 
 def snt_to_tokens(snt_eng, vocab_eng, device, max_len=34):
-    snt_split = tokenize_eng(snt_eng)[:max_len]
-    snt_ids = tokens_to_id(snt_split, vocab_eng)
+    eng_unk = vocab_eng['<unk>']
+    snt_split = tokenize_snt(snt_eng, r"""['"€;:()$%–—‘’°“”₳+&#=‐…−/£@-]""", lambda x: x + ['<eos>'])[:max_len]
+    snt_ids = [vocab_eng.get(tok, eng_unk) for tok in snt_split]
     return torch.tensor(snt_ids).reshape(1, -1).to(device), torch.tensor([len(snt_ids)]).to(device)
 
 def tokens_to_snt(pred_ids, vcb_pol_rev):
