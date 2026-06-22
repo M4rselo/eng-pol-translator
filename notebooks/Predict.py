@@ -3,9 +3,9 @@ import Data
 
 def snt_to_tokens(snt_eng, vocab_eng, device, max_len=34):
     eng_unk = vocab_eng['<unk>']
-    snt_split = tokenize_snt(snt_eng, r"""['"€;:()$%–—‘’°“”₳+&#=‐…−/£@-]""", lambda x: x + ['<eos>'])[:max_len]
+    snt_split = Data.tokenize_snt(snt_eng, r"""['"€;:()$%–—‘’°“”₳+&#=‐…−/£@-]""", lambda x: x + ['<eos>'])[:max_len]
     snt_ids = [vocab_eng.get(tok, eng_unk) for tok in snt_split]
-    return torch.tensor(snt_ids).reshape(1, -1).to(device), torch.tensor([len(snt_ids)]).to(device)
+    return torch.tensor(snt_ids).reshape(1, -1).to(device), torch.tensor([len(snt_ids)]).reshape(-1, 1).to(device)
 
 def tokens_to_snt(pred_ids, vcb_pol_rev):
     snt_pred = list(map(torch.Tensor.item, pred_ids))
@@ -14,7 +14,7 @@ def tokens_to_snt(pred_ids, vcb_pol_rev):
 def predict_step(snt_eng, vcb_eng, vcb_pol, vcb_pol_rev, model, max_len=34):
     device = model.device
     src_eng, src_len = snt_to_tokens(snt_eng, vcb_eng, device, max_len)
-    bos_id, eos_id = vcb_pol['<bos>'], vcb_pol['eos']
+    bos_id, eos_id = vcb_pol['<bos>'], vcb_pol['<eos>']
     
     with torch.no_grad():
         model.eval()
