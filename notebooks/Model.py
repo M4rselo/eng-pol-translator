@@ -77,6 +77,7 @@ class TransformerEncoder(nn.Module):
                 num_hiddens, ffn_num_hiddens, num_heads, dropout, use_bias))
 
     def forward(self, X_enc, enc_valid_lens):
+        """X_enc shape: (batch_size, seq_len, num_hiddens)"""
         X_enc = self.pos_encoding(self.embedding(X_enc) * math.sqrt(self.num_hiddens))
         self.attention_weights = [None] * self.num_blks
         
@@ -96,6 +97,7 @@ class TransformerEncoderBlock(nn.Module):
         self.addnorm2 = AddNorm(num_hiddens, dropout)
 
     def forward(self, X_enc, enc_valid_lens):
+        """Y shape: (batch_size, seq_len, num_hiddens)"""
         Y = self.addnorm1(X_enc, self.attention(X_enc, X_enc, X_enc, enc_valid_lens))
         return self.addnorm2(Y, self.ffn(Y))
 
@@ -190,15 +192,17 @@ class MultiHeadAttention(nn.Module):
         self.W_o = nn.LazyLinear(num_hiddens, bias=use_bias)
 
     def forward(self, queries, keys, values, valid_lens):
+        """post transpose_qkv shape: (batch_size * num_heads, seq_len, num_hiddens / num_heads)"""
         queries = self.transpose_qkv(self.W_q(queries))
         keys = self.transpose_qkv(self.W_k(keys))
         values = self.transpose_qkv(self.W_v(values))
         
         if valid_lens is not None:
+            """valid_lens shape: (batch_size * num_heads, 1)"""
             valid_lens = torch.repeat_interleave(valid_lens, repeats=self.num_heads, dim=0)
             
-        out = self.attention(queries, keys, values, valid_lens)
-        out_transposed = self.transpose_out(out)
+        out_attention = self.attention(queries, keys, values, valid_lens)
+        out_transposed = self.transpose_out(out_attention)
         return self.W_o(out_transposed)
         
     def transpose_qkv(self, X):
@@ -226,9 +230,10 @@ class DotProductAttention(nn.Module):
 
 def masked_softmax(X, valid_lens):
     def _sequence_mask(X, valid_len, value=-1e6):
-        maxlen = X.size(1)
-        mask = torch.arange((maxlen), dtype=torch.float32, device=X.device)[None, :] < valid_len
-        X[~mask] = value
+        maxlen = X.size(-1)
+        mask = torch.arange((maxlen), dtype=torch.float32, 
+                            device=X.device)[None, None, :] < valid_len.reshape(-1, 1, 1)
+        X.masked_fill_(~mask, value)
         return X
 
     if valid_lens is None:
