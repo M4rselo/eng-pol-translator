@@ -230,9 +230,13 @@ class DotProductAttention(nn.Module):
 
 def masked_softmax(X, valid_lens):
     def _sequence_mask(X, valid_len, value=-1e6):
-        maxlen = X.size(-1)
-        mask = torch.arange((maxlen), dtype=torch.float32, 
-                            device=X.device)[None, None, :] < valid_len.reshape(-1, 1, 1)
+        if valid_len.size(1) == 1:
+            valid_len = valid_len.reshape(-1, 1, 1)
+        else:
+            valid_len = valid_len.reshape(-1, valid_len.shape[-1], 1)
+            
+        mask = torch.arange((X.size(-1)), dtype=torch.float32, 
+                            device=X.device)[None, None, :] < valid_len
         X.masked_fill_(~mask, value)
         return X
 
