@@ -34,22 +34,25 @@ class Seq2Seq(nn.Module):
         return (l * mask).sum() / mask.sum()
     
     def forward(self, batch):
-        enc_X, dec_X, enc_valid_lens = batch
-        enc_outputs = self.encoder(enc_X, enc_valid_lens)
-        dec_state = self.decoder.init_state(enc_outputs, enc_valid_lens)
-        return self.decoder(dec_X, dec_state)[0]
+        X_enc, X_dec, enc_valid_lens = batch
+        
+        """enc_out shape: (batch_size, seq_len, num_hiddens)"""
+        enc_out = self.encoder(X_enc, enc_valid_lens)
+
+        """dec_state: [enc_out, enc_valid_lens, [None] * num_blks]"""
+        dec_state = self.decoder.init_state(enc_out, enc_valid_lens)
+
+        """decoder output: (dec_out, dec_state)"""
+        return self.decoder(X_dec, dec_state)[0]
 
     def batch_step(self, batch):
-        eng_batch, pol_batch, eng_val_lens = batch
+        """Batch: (X_enc, X_enc, enc_valid_lens)"""
+        X_enc, X_dec, enc_valid_lens = [t.to(self.device) for t in batch]
         
-        eng_batch = eng_batch.to(self.device)
-        pol_batch = pol_batch.to(self.device)
-        eng_val_lens = eng_val_lens.to(self.device)
+        """dec_in: [no <eos>] | dec_tgt: [no <bos>]"""
+        dec_in, dec_tgt = X_dec[:, :-1], X_dec[:, 1:]
         
-        dec_input = pol_batch[:, :-1]
-        dec_target = pol_batch[:, 1:]
-        
-        l = self.loss(self((eng_batch, dec_input, eng_val_lens)), dec_target)
+        l = self.loss(self((X_enc, dec_in, enc_valid_lens)), dec_tgt)
         return l
 
 
