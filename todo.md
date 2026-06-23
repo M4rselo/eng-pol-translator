@@ -1,4 +1,5 @@
 ## TO DO - Data.py:
+- [ ] WHOLE LOTTA DATA SANITIZNING ON OPUS OPENSUBTITLES
 ### Stricte Plik:
 - [ ] Ogarnij strukture aby uniknac cmentarza funkcji
 - [ ] Przy obsłudze słownika zadbaj o wiadomy największy możliwy rozmiar sekwencji (np: dla positional encoding)
