@@ -27,7 +27,8 @@ class TrainerModule():
     def fit(self, model, train_data, val_data, num_epoch, save_path):
         self.prepare_data(train_data, val_data)
         self.model = model
-        self.optim = model.config_optim()
+        if getattr(self, 'optim', None) is None:
+            self.optim = model.config_optim()
         self.num_epochs = self.curr_epoch + num_epoch
 
         for epoch in range(self.curr_epoch, self.num_epochs):

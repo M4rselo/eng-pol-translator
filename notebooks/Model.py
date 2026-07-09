@@ -127,7 +127,8 @@ class TransformerDecoder(nn.Module):
         return [enc_outputs, enc_valid_lens, [None] * self.num_blks]
 
     def forward(self, X_dec, state):
-        X_dec = self.pos_encoding(self.embedding(X_dec) * math.sqrt(self.num_hiddens))
+        offset = 0 if state[2][0] is None else state[2][0].shape[1]
+        X_dec = self.pos_encoding(self.embedding(X_dec) * math.sqrt(self.num_hiddens), offset)
         self._attention_weights = [[None] * self.num_blks for _ in range(2)]
         
         for i, blk in enumerate(self.blks):
@@ -160,12 +161,12 @@ class TransformerDecoderBlock(nn.Module):
             key_values = torch.cat((state[2][self.id_blk], X_dec), dim=1)
         state[2][self.id_blk] = key_values
 
-        if self.training:
-            batch_size, seq_length, _ = X_dec.shape
-            dec_valid_lens = torch.arange(1, seq_length + 1, device=X_dec.device).repeat(batch_size, 1)
+        batch_size, num_q, _ = X_dec.shape
+        if num_q > 1:
+            dec_valid_lens = torch.arange(1, num_q + 1, device=X_dec.device).repeat(batch_size, 1)
         else:
             dec_valid_lens = None
-
+        
         X_dec2 = self.attention1(X_dec, key_values, key_values, dec_valid_lens)
         Y_1 = self.addnorm1(X_dec, X_dec2)
 
@@ -258,16 +259,16 @@ class PositionalEncoding(nn.Module):
     def __init__(self, num_hiddens, dropout, seq_length=34):
         super().__init__()
         self.dropout = nn.Dropout(dropout)
-        self.P = torch.zeros((1, seq_length, num_hiddens))
+        P = torch.zeros((1, seq_length, num_hiddens))
         X = torch.arange(seq_length, dtype=torch.float32).reshape(-1, 1) / torch.pow(
             10000, torch.arange(0, num_hiddens, 2, dtype=torch.float32) / num_hiddens)
-        self.P[:, :, 0::2] = torch.sin(X)
-        self.P[:, :, 1::2] = torch.cos(X)
+        P[:, :, 0::2] = torch.sin(X)
+        P[:, :, 1::2] = torch.cos(X)
+        self.register_buffer('P', P)
 
-    def forward(self, X):
-        X = X + self.P[:, :X.shape[1], :].to(X.device)  # trzeba zmienic ostatni pewnie na :X.shape[2]
-        return self.dropout(X)
-
+    def forward(self, X, offset=0):
+        return self.dropout(X + self.P[:, offset:offset + X.shape[1], :])
+        
 
 
 class AddNorm(nn.Module):
