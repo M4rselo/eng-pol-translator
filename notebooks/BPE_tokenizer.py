@@ -1,6 +1,6 @@
 from collections import defaultdict
 import re
-
+from tqdm.notebook import tqdm
 
 def tokenize_eng(snt):
     snt = snt.lower()
