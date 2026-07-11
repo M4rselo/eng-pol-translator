@@ -1,6 +1,6 @@
 from collections import defaultdict
-import re
 from tqdm.notebook import tqdm
+import re, heapq
 
 def tokenize_eng(snt):
     snt = snt.lower()
@@ -17,63 +17,98 @@ def tokenize_pol(snt):
     snt = re.sub(r"\s+", " ", snt).strip()
     return re.split(r'\s+', snt.strip())
 
-    
+
 
 class BPETokenizer():
-    def __init__(self, vocab_chrs, vocab_pairs, vocab_size, is_tgt):
+    def __init__(self, vocab_chrs, vocab_pairs, vocab_size, num_switch=500, is_tgt=False):
         self.vocab_chrs = vocab_chrs
         self.vocab_pairs = vocab_pairs
         self.vocab_size = vocab_size
-        self.pair_counts = self.pair_counts_init(vocab_pairs)
-        self.vocab = self.vocab_init(vocab_chrs, is_tgt)
+        self.num_switch = num_switch
+
+        self.pair_counts_init(vocab_pairs)
+        self.vocab_init(vocab_chrs, is_tgt)
         self.base_size = len(self.vocab)
+        self.heap = None                      
 
     def vocab_init(self, vocab_chrs, is_tgt):
-        vocab = {'<pad>': 0, '<unk>': 1, '<eos>': 2, '_': 3}
+        self.vocab = {'<pad>': 0, '<unk>': 1, '<eos>': 2, '_': 3}
         if is_tgt:
-            vocab['<bos>'] = 4
-            
+            self.vocab['<bos>'] = 4
         uniq_toks = {tok for toks, _ in vocab_chrs for tok in toks}
         uniq_toks.remove('_')
-        for i, tok in enumerate(uniq_toks, len(vocab)):
-            vocab[tok] = i
-        return vocab
+        for i, tok in enumerate(uniq_toks, len(self.vocab)):
+            self.vocab[tok] = i
 
     def pair_counts_init(self, vocab_pairs):
-        pair_counts = defaultdict(int)
-        for toks, freq in vocab_pairs:
+        self.pair_counts = defaultdict(int)
+        self.pair_to_words = defaultdict(set)
+        for i, (toks, freq) in enumerate(vocab_pairs):
             for pair in toks:
-                pair_counts[pair] += freq
-        return pair_counts
+                self.pair_counts[pair] += freq
+                self.pair_to_words[pair].add(i)
+
+    def build_heap(self):
+        self.pair_seq = {p: s for s, p in enumerate(self.pair_counts)}
+        self.seq_ctr = len(self.pair_seq)
+        self.heap = [(-c, self.pair_seq[p], p) for p, c in self.pair_counts.items()]
+        heapq.heapify(self.heap)
 
     def train_bpe(self):
+        switch = self.base_size + self.num_switch
+        most_freq_pair = self.most_freq_pair_scan
+        
         for i in tqdm(range(self.base_size, self.vocab_size)):
-            pair = self.most_common_pair()
+            if i == switch:
+                self.build_heap()
+                most_freq_pair = self.most_freq_pair_heap
+                
+            pair = most_freq_pair()
             self.vocab[pair] = i
             self.replace_pairs(pair)
 
     def replace_pairs(self, pair):
         pair_con = f"{pair[0]}{pair[1]}"
         p_1, p_2 = map(re.escape, pair)
-        
-        for i in range(len(self.vocab_chrs)):
-            if pair in self.vocab_pairs[i][0]:
-                new_chr = re.sub(rf"(?<=\s){p_1}\s{p_2}(?=\s)", pair_con, f" {' '.join(self.vocab_chrs[i][0])} ").split()
-                self.vocab_chrs[i][0] = new_chr
-                self.update_pair_count(list(zip(new_chr, new_chr[1:])), i)
-        self.pair_counts.pop(pair)
+
+        for i in sorted(self.pair_to_words.get(pair, ())):
+            new_chr = re.sub(rf"(?<=\s){p_1}\s{p_2}(?=\s)", pair_con, f" {' '.join(self.vocab_chrs[i][0])} ").split()
+            self.vocab_chrs[i][0] = new_chr
+            self.update_pair_count(list(zip(new_chr, new_chr[1:])), i)
+
+        self.pair_counts.pop(pair, None)
+        self.pair_to_words.pop(pair, None)
 
     def update_pair_count(self, new_pairs, i):
         old_pairs, val = self.vocab_pairs[i]
+        
         for tup in old_pairs:
-            self.pair_counts[tup] -= val  
+            self.pair_counts[tup] -= val
+            self.pair_to_words[tup].discard(i)
+            if self.heap:
+                heapq.heappush(self.heap, (-self.pair_counts[tup], self.pair_seq[tup], tup))
+                
         for tup in new_pairs:
             self.pair_counts[tup] += val
+            self.pair_to_words[tup].add(i)
+            if self.heap:
+                s = self.pair_seq.get(tup)      
+                if s is None:
+                    s = self.seq_ctr
+                    self.pair_seq[tup] = s
+                    self.seq_ctr += 1        
+                heapq.heappush(self.heap, (-self.pair_counts[tup], s, tup))
         self.vocab_pairs[i][0] = new_pairs
-      
-    def most_common_pair(self):
+
+    def most_freq_pair_scan(self):
         return max(self.pair_counts, key=self.pair_counts.get)
 
+    def most_freq_pair_heap(self):
+        while self.heap:
+            neg_count, seq, pair = heapq.heappop(self.heap)
+            if self.pair_counts.get(pair) == -neg_count:
+                return pair
+        raise RuntimeError("Brak par, za duży vocab_size")
 
 
 class BPEEncoder():
