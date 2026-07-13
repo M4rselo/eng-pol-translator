@@ -15,6 +15,7 @@ from Data import data_loader
 class TrainerModule():
     def __init__(self, batch_size):
         self.batch_size = batch_size
+        self.scaler = torch.cuda.amp.GradScaler()
         self.curr_epoch = 0
 
     def plotter_init(self, title):
@@ -42,10 +43,15 @@ class TrainerModule():
         pbar_train = tqdm(self.train_dataloader, desc=f"Epoch: {self.curr_epoch} [Train]", leave=False)
         
         for batch in pbar_train:
-            loss = self.model.batch_step(batch)     
+            with torch.autocast(device_type='cuda'):
+                loss = self.model.batch_step(batch)
+            #loss = self.model.batch_step(batch)     
             self.optim.zero_grad()
-            loss.backward()
-            self.optim.step()
+            self.scaler.scale(loss).backward()
+            self.scaler.step(self.optim)
+            self.scaler.update()
+            # loss.backward()
+            # self.optim.step()
 
             tr_ltab.append(loss.item())
             pbar_train.set_postfix(loss=f"{loss.item():.4f}")
@@ -64,10 +70,12 @@ class TrainerModule():
 
     def save_checkpoint(self, tr_ltab, val_ltab, save_path):
         torch.save({'epoch': self.curr_epoch,
-                    'model_state': self.model.state_dict(),
-                    'optim_state': self.optim.state_dict(),
-                    'train_loss': mean(tr_ltab),
-                    'val_loss': mean(val_ltab)}, save_path+f"{self.curr_epoch}.pt")
+            'model_state': self.model.state_dict(),
+            'optim_state': self.optim.state_dict(),
+            'train_loss': mean(tr_ltab),
+            'val_loss': mean(val_ltab),
+            'scaler_state': self.scaler.state_dict()}, 
+            save_path + f"{self.curr_epoch}.pt")
 
     def load_checkpoint(self, model, save_path):
         checkpoint = torch.load(save_path)
@@ -76,6 +84,7 @@ class TrainerModule():
         self.model.load_state_dict(checkpoint['model_state'])
         self.optim = model.config_optim()
         self.optim.load_state_dict(checkpoint['optim_state'])
+        self.scaler.load_state_dict(checkpoint['scaler_state'])
 
 
 
