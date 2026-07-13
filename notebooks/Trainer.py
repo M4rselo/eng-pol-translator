@@ -67,7 +67,7 @@ class TrainerModule():
                     'model_state': self.model.state_dict(),
                     'optim_state': self.optim.state_dict(),
                     'train_loss': mean(tr_ltab),
-                    'val_loss': mean(val_ltab)}, save_path)
+                    'val_loss': mean(val_ltab)}, save_path+f"{self.curr_epoch}.pt")
 
     def load_checkpoint(self, model, save_path):
         checkpoint = torch.load(save_path)
