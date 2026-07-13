@@ -19,6 +19,12 @@ class Seq2Seq(nn.Module):
         self.pad_id = pad_id
         self.device = device
         self.to(self.device)
+        self._init_weights()
+
+    def _init_weights(self):
+        for p in self.parameters():
+            if p.dim() > 1:
+                nn.init.xavier_uniform_(p)
 
     def config_optim(self):
         return torch.optim.Adam(self.parameters(), lr=self.lr)
@@ -230,7 +236,7 @@ class DotProductAttention(nn.Module):
 
 
 def masked_softmax(X, valid_lens):
-    def _sequence_mask(X, valid_len, value=-1e6):
+    def _sequence_mask(X, valid_len, value=-1e4):
         if valid_len.size(1) == 1:
             valid_len = valid_len.reshape(-1, 1, 1)
         else:
@@ -245,7 +251,7 @@ def masked_softmax(X, valid_lens):
         return nn.functional.softmax(X, dim=-1)
     else:
         shape = X.shape
-        X = _sequence_mask(X, valid_lens, value=-1e6)
+        X = _sequence_mask(X, valid_lens, value=-1e4)
         return nn.functional.softmax(X, dim=-1)
 
 

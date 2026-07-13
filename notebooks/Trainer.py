@@ -15,7 +15,7 @@ from Data import data_loader
 class TrainerModule():
     def __init__(self, batch_size):
         self.batch_size = batch_size
-        self.scaler = torch.cuda.amp.GradScaler()
+        self.scaler = torch.amp.GradScaler('cuda')
         self.curr_epoch = 0
 
     def plotter_init(self, title):
@@ -45,11 +45,14 @@ class TrainerModule():
         for batch in pbar_train:
             with torch.autocast(device_type='cuda'):
                 loss = self.model.batch_step(batch)
-            #loss = self.model.batch_step(batch)     
+            #loss = self.model.batch_step(batch)  
             self.optim.zero_grad()
             self.scaler.scale(loss).backward()
+            self.scaler.unscale_(self.optim)
+            torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
             self.scaler.step(self.optim)
             self.scaler.update()
+            #loss = self.model.batch_step(batch)     
             # loss.backward()
             # self.optim.step()
 
