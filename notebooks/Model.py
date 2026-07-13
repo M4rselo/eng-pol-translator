@@ -63,13 +63,13 @@ class Seq2Seq(nn.Module):
 ======================================================
 """
 class TransformerEncoder(nn.Module):
-    def __init__(self, eng_vocab_size, num_hiddens, ffn_num_hiddens, num_heads, num_blks, dropout, use_bias=False):
+    def __init__(self, eng_vocab_size, num_hiddens, ffn_num_hiddens, num_heads, num_blks, dropout, max_seq, use_bias=False):
         super().__init__()
         self.num_hiddens = num_hiddens
         self.num_blks = num_blks
         
         self.embedding = nn.Embedding(eng_vocab_size, num_hiddens)
-        self.pos_encoding = PositionalEncoding(num_hiddens, dropout)
+        self.pos_encoding = PositionalEncoding(num_hiddens, dropout, max_seq)
         self.blks = nn.Sequential()
         
         for i in range(num_blks):
@@ -109,13 +109,13 @@ class TransformerEncoderBlock(nn.Module):
 ======================================================
 """
 class TransformerDecoder(nn.Module):
-    def __init__(self, pol_vocab_size, num_hiddens, ffn_num_hiddens, num_heads, num_blks, dropout):
+    def __init__(self, pol_vocab_size, num_hiddens, ffn_num_hiddens, num_heads, num_blks, dropout, max_seq):
         super().__init__()
         self.num_hiddens = num_hiddens
         self.num_blks = num_blks
         
         self.embedding = nn.Embedding(pol_vocab_size, num_hiddens)
-        self.pos_encoding = PositionalEncoding(num_hiddens, dropout)
+        self.pos_encoding = PositionalEncoding(num_hiddens, dropout, max_seq)
         self.dense = nn.LazyLinear(pol_vocab_size)
         self.blks = nn.Sequential()
         
@@ -256,11 +256,11 @@ def masked_softmax(X, valid_lens):
 ======================================================
 """
 class PositionalEncoding(nn.Module):
-    def __init__(self, num_hiddens, dropout, seq_length=34):
+    def __init__(self, num_hiddens, dropout, max_seq):
         super().__init__()
         self.dropout = nn.Dropout(dropout)
-        P = torch.zeros((1, seq_length, num_hiddens))
-        X = torch.arange(seq_length, dtype=torch.float32).reshape(-1, 1) / torch.pow(
+        P = torch.zeros((1, max_seq, num_hiddens))
+        X = torch.arange(max_seq, dtype=torch.float32).reshape(-1, 1) / torch.pow(
             10000, torch.arange(0, num_hiddens, 2, dtype=torch.float32) / num_hiddens)
         P[:, :, 0::2] = torch.sin(X)
         P[:, :, 1::2] = torch.cos(X)

@@ -1,10 +1,10 @@
 import torch
 import torch.nn.functional as F
-
+from BPE_tokenizer import tokenize_eng
 
 
 class PredictionModule():
-    def __init__(self, model, encoder_eng, tokenizer_pol, alpha=0.6, max_len=34):
+    def __init__(self, model, encoder_eng, encoder_pol, tokenizer_pol, alpha=0.6, max_len=34):
         self.model, self.device = model, model.device
         self.alpha, self.max_len = alpha, max_len
         self.encode_snt = encoder_eng.encode_snt
@@ -13,7 +13,7 @@ class PredictionModule():
         self.bos_in = torch.tensor(tokenizer_pol.vocab['<bos>']).reshape(1, -1).to(self.device)
 
     def predict_snt(self, snt_eng, num_k=5):
-        snt_ids = seld.encode_snt(snt_eng) + [2]
+        snt_ids = self.encode_snt(tokenize_eng(snt_eng)) + [2]
         X_enc = torch.tensor(snt_ids).reshape(1, -1).to(self.device)
         val_len = torch.tensor([len(snt_ids)]).reshape(-1, 1).to(self.device)
         finished = []
@@ -62,34 +62,7 @@ class PredictionModule():
         if not finished:
             finished = [(s, l, len(s)) for s, l in zip(seqs, logs)]
         best = max(finished, key=lambda h: h[1] / (h[2] ** self.alpha))
-        return [self.rev_pol[t] for t in best[0] if t != self.eos_id], finished
+        return [self.rev_pol[t] for t in best[0] if t != self.eos_id]#, finished
 
         
-# def snt_to_tokens(snt_eng, vocab_eng, device, max_len=34):
-#     eng_unk = vocab_eng['<unk>']
-#     snt_split = Data.tokenize_snt(snt_eng, r"""['"€;:()$%–—‘’°“”₳+&#=‐…−/£@-]""", lambda x: x + ['<eos>'])[:max_len]
-#     snt_ids = [vocab_eng.get(tok, eng_unk) for tok in snt_split]
-#     return torch.tensor(snt_ids).reshape(1, -1).to(device), torch.tensor([len(snt_ids)]).reshape(-1, 1).to(device)
-
-# def tokens_to_snt(pred_ids, vcb_pol_rev):
-#     snt_pred = list(map(torch.Tensor.item, pred_ids))
-#     return [vcb_pol_rev[x] for x in snt_pred]
-
-# def predict_step(snt_eng, vcb_eng, vcb_pol, vcb_pol_rev, model, max_len=34):
-#     device = model.device
-#     src_eng, src_len = snt_to_tokens(snt_eng, vcb_eng, device, max_len)
-#     bos_id, eos_id = vcb_pol['<bos>'], vcb_pol['<eos>']
-    
-#     with torch.no_grad():
-#         model.eval()
-#         X_enc = model.encoder(src_eng, src_len)
-#         dec_state = model.decoder.init_state(X_enc, src_len)
-#         pred_ids = [torch.tensor(bos_id).reshape(1, -1).to(device)]
-
-#         for _ in range(max_len):
-#             Y_dec, dec_state = model.decoder(pred_ids[-1], dec_state)
-#             pred_ids.append(Y_dec.argmax(2))
-#             if pred_ids[-1].item() == eos_id:
-#                 break
-#     return tokens_to_snt(pred_ids, vcb_pol_rev)
     
