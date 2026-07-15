@@ -25,9 +25,18 @@ class TrainerModule():
         self.train_dataloader = data_loader(train_data, self.batch_size)
         self.val_dataloader = data_loader(val_data, self.batch_size)
 
-    def fit(self, model, train_data, val_data, num_epoch, save_path):
+    def init_run(self):
+        dummy_batch = next(iter(self.train_dataloader))
+        with torch.no_grad():
+            self.model.batch_step(dummy_batch)
+        self.model._init_weights()
+        
+    def fit(self, model, train_data, val_data, num_epoch, save_path, is_init=True):
         self.prepare_data(train_data, val_data)
         self.model = model
+        if is_init:
+            self.init_run()
+
         if getattr(self, 'optim', None) is None:
             self.optim = model.config_optim()
         self.num_epochs = self.curr_epoch + num_epoch

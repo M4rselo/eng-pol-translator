@@ -19,7 +19,6 @@ class Seq2Seq(nn.Module):
         self.pad_id = pad_id
         self.device = device
         self.to(self.device)
-        self._init_weights()
 
     def _init_weights(self):
         for p in self.parameters():
