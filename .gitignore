@@ -180,6 +180,6 @@ cython_debug/
 .cursorignore
 .cursorindexingignorecheckpoints/
 /checkpoints
-/data
 /local_data
 /notebooks
+data/predicter/predicter_1.pkl
