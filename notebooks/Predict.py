@@ -7,13 +7,13 @@ class PredictionModule():
     def __init__(self, tokenizer_eng, tokenizer_pol, encoder_eng, encoder_pol, model, alpha=0.6, max_seq=51):
         self.model, self.device, self.num_blks = model, model.device, model.decoder.num_blks
         self.alpha, self.max_len, self.vocab_size = alpha, max_seq, tokenizer_pol.vocab_size
-        self.encode_eng = lambda snt: encoder_eng.encode_snt(tokenize_eng(snt)) + [2]
+        self.encode_eng = encoder_eng.encode_snt
         self.bos_init = torch.tensor(tokenizer_pol.vocab['<bos>'], device=self.device).view(1, -1)
         self.rev_pol = {v: k for k, v in encoder_pol.vocab_encoder.items()}
         self.eos_id = tokenizer_pol.vocab['<eos>']
 
     def snt_encoder_input(self, eng_snt):
-        X_enc = torch.tensor(self.encode_eng(eng_snt), device=self.device).view(1, -1)
+        X_enc = torch.tensor(self.encode_eng(tokenize_eng(eng_snt)) + [2], device=self.device).view(1, -1)
         return X_enc, torch.tensor(X_enc.size(1), device=self.device).view(-1, 1)
 
     def translate_snt(self, eng_snt, num_k=5):

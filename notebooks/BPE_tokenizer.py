@@ -117,13 +117,12 @@ class BPEEncoder():
         self.vocab_encoder = {"".join(k): v for k, v in bpe_vocab.items()}
         self.word_encoder = {"".join(k): [self.vocab_encoder.get(x) for x in k] for k, _ in bpe_vocab_chrs}
         self.vocab_tuple = list(bpe_vocab.keys())[thres_tup:]
-        self.char_factor = lambda word: [x for x in word] + ['_']
 
     def encode_snt(self, snt_toks):
         return [y for x in snt_toks for y in self.encode_word(x)]
 
     def encode_word(self, word):
-        word_factor = self.char_factor(word)
+        word_factor = [x for x in word] + ['_']
         word_id = self.word_encoder.get("".join(word_factor), None)
         if word_id is not None:
             yield from word_id
