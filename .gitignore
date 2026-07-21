@@ -182,3 +182,4 @@ cython_debug/
 /checkpoints
 /local_data
 /notebooks
+data/predicter/predicter_1.pkl
