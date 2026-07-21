@@ -108,7 +108,6 @@ class BPETokenizer():
             neg_count, seq, pair = heapq.heappop(self.heap)
             if self.pair_counts.get(pair) == -neg_count:
                 return pair
-        raise RuntimeError("Brak par, za duży vocab_size")
         
 
 
