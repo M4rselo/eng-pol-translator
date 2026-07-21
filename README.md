@@ -117,7 +117,7 @@ EN: quit
 
 - **Style & tone conditioning** - the idea is to let the user provide a few example sentences and have the model pick up on the style and apply it to the translation, without any retraining
 
-- **Unique sequence handling** - URLs, long numbers, email addresses — things that don't fit standard vocabulary and currently get mangled
+- **Unique sequence handling** - URLs, long numbers, email addresses - things that don't fit standard vocabulary and currently get mangled
 
 ---
 
@@ -139,7 +139,7 @@ PL: John dała mary książkę.
 EN: If I had known about the problem earlier, I would have fixed it.
 PL: Gdybym wiedziała wcześniej o problemie, naprawiłbym go.
 ```
-- **Idioms** — model struggles with non-literal expressions, translating them word-for-word
+- **Idioms** - model struggles with non-literal expressions, translating them word-for-word
 ```
 EN: I'll speak straight from the shoulder.
 PL: Porozmawiam prosto z ramię.
@@ -147,7 +147,7 @@ PL: Porozmawiam prosto z ramię.
 EN: He feels under the weather.
 PL: Czuje się pod wodą.
 ```
-- **Unique sequences** — numbers, URLs, and other rare character sequences outside standard vocabulary tend to get mangled or omitted during translation
+- **Unique sequences** - numbers, URLs, and other rare character sequences outside standard vocabulary tend to get mangled or omitted during translation
 ```
 EN: It costs 235660$.
 PL: Kosztuje 25656000 $.
