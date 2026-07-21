@@ -1,5 +1,5 @@
 import sys
-sys.path.append('./notebooks')
+sys.path.append('./modules')
 
 import pickle
 from BPE_tokenizer import BPETokenizer, BPEEncoder
