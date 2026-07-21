@@ -181,3 +181,5 @@ cython_debug/
 .cursorindexingignorecheckpoints/
 /checkpoints
 /data
+/local_data
+/notebooks
