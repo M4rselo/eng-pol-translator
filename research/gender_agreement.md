@@ -48,8 +48,41 @@ When there is no he/she or name to infer gender from, the output gender is unpre
 > **EN:** I decided to quit my job.   
 > **Model:** Postanowi**łem** przestać wykonywać swoją pracę.   
 > ***Expected:*** ambiguous - but should at least be consistent with the sentence above   
- 
+
 ---
  
 ## Solutions
-...
+
+### Solution v1 (Initial Implementation)
+The first working solution focuses on first-person sentences, where grammatical gender cannot be inferred from the source sentence alone.
+
+A corpus of first-person sentences was collected from *OpenSubtitles* dataset and manually classified into three groups. Feminine and masculine examples were identified based on grammatical endings (e.g. *-łam*, *-łabym* *-łem*, *-łbym*) together with sentence structure analysis. Sentences that could not be reliably assigned to either gender, or where grammatical gender is not expressed in Polish (e.g. *Lubię chodzić do kina.*/*Jesteś dla mnie niemiły.*), were placed into a separate neutral category.
+
+The resulting dataset consisted of approximately:
+
+- **20k** feminine first-person sentences,
+- **20k** masculine first-person sentences,
+- **60k** gender-neutral or unassigned first-person sentences.
+
+Three special control tokens were introduced:
+
+- `<self_f>` – feminine speaker
+- `<self_m>` – masculine speaker
+- `<self_na>` – gender-neutral
+
+The control token is prefixed to the input sequence before the `<bos>` token, allowing the model to explicitly condition the translation on the speaker's grammatical gender when necessary.
+
+Example translations:
+
+```python
+predicter_2.translate_snt("I have never been to Paris.", "f")
+# "Nigdy nie byłam w Paryżu."
+
+predicter_2.translate_snt("I have never been to Paris.", "m")
+# "Nigdy nie byłem w Paryżu."
+
+predicter_2.translate_snt("I should go.", "f")
+# "Powinnam iść."
+
+predicter_2.translate_snt("I should go.", "m")
+# "Powinienem iść."
