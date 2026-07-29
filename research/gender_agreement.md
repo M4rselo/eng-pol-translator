@@ -72,17 +72,35 @@ Three special control tokens were introduced:
 
 The control token is prefixed to the input sequence before the `<bos>` token, allowing the model to explicitly condition the translation on the speaker's grammatical gender when necessary.
 
-Example translations:
-
+Results and Limitations:
+- The model correctly conditions its output on the provided gender token, selecting the appropriate grammatical forms.
 ```python
-predicter_2.translate_snt("I have never been to Paris.", "f")
-# "Nigdy nie byłam w Paryżu."
+predicter.translate_snt("I have never been to Paris.", 'f')
+> 'Nigdy nie byłam w paryżu.'
+------------------------------------------------------------
+predicter.translate_snt("I have never been to Paris.", 'm')  
+> 'Nigdy nie byłem w paryżu.'
+============================================================
+predicter.translate_snt("I shouldn't be here.", 'f')
+> 'Nie powinnam tu zostać.'
+------------------------------------------------------------
+predicter.translate_snt("I shouldn't be here.", 'm')
+> 'Nie powinienem tu zostać.'
+```
+- The model appears to struggle with sentences where grammatical gender is not expressed in Polish:
+```python
+predicter.translate_snt("I want to talk to you.", 'f')
+> 'Chciałam z tobą porozmawiać.'
+[Expected: Chcę z tobą porozmawiać]
+------------------------------------------------------------
+predicter.translate_snt("I want to talk to you.", 'm')  
+> 'Chciałbym z tobą porozmawiać.'
+[Partially correct, but the meaning shifts closer to "I would like to ..."]
+------------------------------------------------------------
+predicter.translate_snt("I want to talk to you.", 'na')
+> 'Chcę z tobą porozmawiać.'
+```
+This behavior is likely due to the lack of gender-conditioned examples where grammatical gender should remain unspecified. Since the model receives an explicit gender signal, it may overuse gender-specific forms even in contexts where Polish naturally uses a gender-neutral construction.
 
-predicter_2.translate_snt("I have never been to Paris.", "m")
-# "Nigdy nie byłem w Paryżu."
 
-predicter_2.translate_snt("I should go.", "f")
-# "Powinnam iść."
 
-predicter_2.translate_snt("I should go.", "m")
-# "Powinienem iść."
