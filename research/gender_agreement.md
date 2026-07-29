@@ -87,7 +87,8 @@ predicter.translate_snt("I shouldn't be here.", 'f')
 predicter.translate_snt("I shouldn't be here.", 'm')
 > 'Nie powinienem tu zostać.'
 ```
-- The model appears to struggle with sentences where grammatical gender is not expressed in Polish:
+- The model appears to struggle with sentences where grammatical gender is not expressed in Polish: </br>
+</br>This behavior is likely due to the lack of gender-conditioned examples where grammatical gender should remain unspecified. Since the model receives an explicit gender signal, it may overuse gender-specific forms even in contexts where Polish naturally uses a gender-neutral construction.
 ```python
 predicter.translate_snt("I want to talk to you.", 'f')
 > 'Chciałam z tobą porozmawiać.'
@@ -100,7 +101,6 @@ predicter.translate_snt("I want to talk to you.", 'm')
 predicter.translate_snt("I want to talk to you.", 'na')
 > 'Chcę z tobą porozmawiać.'
 ```
-This behavior is likely due to the lack of gender-conditioned examples where grammatical gender should remain unspecified. Since the model receives an explicit gender signal, it may overuse gender-specific forms even in contexts where Polish naturally uses a gender-neutral construction.
 
 
 
