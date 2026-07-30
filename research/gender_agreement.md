@@ -72,7 +72,7 @@ Three special control tokens were introduced:
 
 The control token is prefixed to the input sequence before the `<bos>` token, allowing the model to explicitly condition the translation on the speaker's grammatical gender when necessary.
 
-Results and Limitations:
+#### Results and Limitations:
 - The model correctly conditions its output on the provided gender token, selecting the appropriate grammatical forms.
 ```python
 predicter.translate_snt("I have never been to Paris.", 'f')
@@ -101,6 +101,17 @@ predicter.translate_snt("I want to talk to you.", 'm')
 predicter.translate_snt("I want to talk to you.", 'na')
 > 'Chcę z tobą porozmawiać.'
 ```
+#### Sample Evaluation
+
+A quick test was performed on three manually prepared test subsets (500 sentences each), selected before training from the data assigned to each reference token category. The table shows the number of sentences where the model generated the expected grammatical forms.
+
+| Token | Test size | Correct sentences |
+|-------|----------:|------------------:|
+| `<self_f>` | 500 | 30 / 500 |
+| `<self_m>` | 500 | 18 / 500 |
+| `<self_na>` | 500 | 50 / 500 |
+
+Due to limitations in the current training data structure, the model struggles with gender-specific tokens. `<self_na>` achieves better results, while `<self_f>` and especially `<self_m>` remain less reliable.
 
 
 
