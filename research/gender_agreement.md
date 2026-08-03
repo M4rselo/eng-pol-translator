@@ -111,6 +111,8 @@ A quick test was performed on three manually prepared test subsets (500 sentence
 | `<self_m>` | 500 | 18 / 500 |
 | `<self_na>` | 500 | 50 / 500 |
 
+### Solution v2
+
 Due to limitations in the current training data structure, the model struggles with gender-specific tokens. `<self_na>` achieves better results, while `<self_f>` and especially `<self_m>` remain less reliable.
 
 
