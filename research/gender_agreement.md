@@ -147,3 +147,15 @@ Each model was tested on three held-out subsets (~590 sentences per token), extr
 | `<self_na>` | 59 / 594 | 81 / 594 | **82 / 594** |
 
 Both v2 models roughly **triple** v1's exact-match rate on the gendered tokens. The "various" model - trained on first-person data mixed with general *OpenSubtitles* - comes out on top everywhere, suggesting that greater data variety improves overall translation quality, not just gender handling.
+
+**2. BLEU (mean / median)**
+ 
+Since exact match penalizes any valid rephrasing, BLEU gives a softer view of translation quality against the same reference. Reported as *mean / median* per subset.
+ 
+| Token | V1 (first-person) | V2 (first-person) | V2 (various) |
+|-------|:-----------------:|:-----------------:|:------------:|
+| `<self_f>`  | 0.224 / 0.136 | 0.380 / 0.290 | **0.433 / 0.366** |
+| `<self_m>`  | 0.217 / 0.140 | 0.320 / 0.214 | **0.366 / 0.286** |
+| `<self_na>` | 0.269 / 0.147 | 0.338 / 0.205 | **0.379 / 0.297** |
+ 
+BLEU confirms the exact-match trend: both v2 models clearly outperform v1, and the "various" model leads across every subset. The jump in median is especially large — v1's low medians indicate many near-zero translations, while v2 shifts the bulk of outputs toward usable quality. Once again the gain is strongest on `<self_f>`, the category v1 handled worst.
