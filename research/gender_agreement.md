@@ -159,3 +159,41 @@ Since exact match penalizes any valid rephrasing, BLEU gives a softer view of tr
 | `<self_na>` | 0.269 / 0.147 | 0.338 / 0.205 | **0.379 / 0.297** |
  
 BLEU confirms the exact-match trend: both v2 models clearly outperform v1, and the "various" model leads across every subset. The jump in median is especially large — v1's low medians indicate many near-zero translations, while v2 shifts the bulk of outputs toward usable quality. Once again the gain is strongest on `<self_f>`, the category v1 handled worst.
+
+### Translation Examples
+
+- Sample outputs from the **V2 (various)** model across all three tokens.
+
+```python
+=================================== | ==========================
+ENG: 'I would like to talk to you.' | ENG: 'I am a teacher.'
+----------------------------------- | --------------------------
+F:  'Chciałabym z tobą porozmawiać.'| F:  'Jestem nauczycielką.'
+M:  'Chciałbym z tobą porozmawiać.' | M:  'Jestem nauczycielem.'
+Na: 'Chcę z tobą porozmawiać.'      | Na: 'Jestem nauczycielem.'
+=================================== | ==========================
+```
+
+- Some tokens are still undertrained on certain forms - a matter of adjusting the external token later.
+
+```python
+===============================================
+ENG: 'I was told that everything will be okay.'
+-----------------------------------------------
+F:  'Mówiono mi, że wszystko będzie dobrze.'
+M:  'Powiedziano mi, że wszystko będzie dobrze.'
+Na: 'Powiedziano mi, że wszystko będzie dobrze.'
+===============================================
+```
+
+- On strictly first-person sentences, `<self_na>` performs noticeably worse than the gendered tokens.
+
+```python
+============================================================
+ENG: 'I went to the store, bought bread, and came back home.'
+------------------------------------------------------------
+F:  'Pojechałam do sklepu, kupiłam chleb i wróciłam do domu.'
+M:  'Poszedłem do sklepu, kupiłem chleb i wróciłem do domu.'
+Na: 'Poszedłem do sklepu, kupić chleb i wróciła do domu.'
+============================================================
+```
