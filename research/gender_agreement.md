@@ -16,6 +16,10 @@ In Polish, verbs, adjectives, and participles need to match the subject's gender
 > **Model:** Jako mąż uważam, że jestem **piękna**.
 > ***Expected:*** Jako mąż uważam, że jestem **piękny**.
 
+> **EN:** If I had known about the problem earlier, I would have fixed it.
+> **Model:** Gdybym **wiedziała** wcześniej o problemie, **naprawiłbym** go.
+> ***Expected:*** ambiguous speaker gender — but should at least be internally consistent, not mixed (feminine *wiedziała* / masculine *naprawiłbym*)
+
 **2. Proper names treated as gender-neutral tokens** — Polish names carry strong gender information (Anna = female, John = male), but the model cannot reliably associate a name with a gender.
 
 > **EN:** John gave Mary a book.
@@ -197,6 +201,59 @@ M:  'Poszedłem do sklepu, kupiłem chleb i wróciłem do domu.'
 Na: 'Poszedłem do sklepu, kupić chleb i wróciła do domu.'
 ============================================================
 ```
+
+<br/>
+
+## Solution v3 — Extending to the Addressee (Second Person) [In Progress]
+
+v1 and v2 only condition on the *speaker's* gender. But Polish grammar marks the *addressee* too — second-person verb forms and pronouns differ by the listener's gender and by formality (*pan/pani*, plural *wy*). Ignoring this leaves half of the agreement problem unsolved.
+
+Building on the same *OpenSubtitles* corpus, a second, parallel extraction pass pulled out second-person sentences (containing *you*) and classified them by the grammatical form of address — verb endings (e.g. *-łaś/-łeś*), *pan/pani* forms, and plural/formal *wy*-forms — using the same suffix-pattern approach as the self-reference extraction in v1.
+
+Four new control tokens were introduced:
+
+- `<addr_f>` — feminine addressee
+- `<addr_m>` — masculine addressee
+- `<addr_p>` — formal or plural addressee (*pan/pani/wy*)
+- `<addr_na>` — no addressee context
+
+Rather than replacing the speaker token, the addressee token is prefixed alongside it: `<self_ref> <addr_ref> <bos> ...` — the model sees both the speaker's and the addressee's grammatical context in a single pass. This model is referred to internally as the **Combined Gender Context Model**.
+
+### Status
+
+Not yet formally evaluated — no held-out exact-match or BLEU numbers like v1/v2 yet. Manual testing with a local playground script has surfaced two recurring issues worth tracking:
+
+**`<self_na>` isn't truly neutral — it mirrors `addr_ref`'s gender instead.** The speaker's gender should stay unmarked when `self_ref='na'`, but it consistently picks up whatever gender `addr_ref` was set to:
+
+```python
+predicter.translate_snt("I was wrong and you were right.", self_ref='na', addr_ref='f')
+> 'Myliłam się i miałaś rację.'
+------------------------------------------------------------
+predicter.translate_snt("I was wrong and you were right.", self_ref='na', addr_ref='m')
+> 'Myliłeś się i miałeś rację.'
+```
+
+When both `self_ref` and `addr_ref` are `na` together, the model can lose the first-person subject entirely, rendering both clauses as addressed to "you":
+
+```python
+predicter.translate_snt("I was wrong and you were right.", self_ref='na', addr_ref='na')
+> 'Mylisz się i masz rację.'
+[Expected: past tense, first person — got present tense, second person throughout]
+```
+
+**Plural addressees are fragile outside `<addr_p>`.** Sentences implying "you all" only come out grammatical when `<addr_p>` is set explicitly; other tokens on the same sentence produce singular/plural agreement mismatches:
+
+```python
+predicter.translate_snt("Are you all doctors?", self_ref='na', addr_ref='p')
+> 'Wszyscy jesteście lekarzami?'
+------------------------------------------------------------
+predicter.translate_snt("Are you all doctors?", self_ref='na', addr_ref='m')
+> 'Jesteś wszyscy lekarzami?'
+[Singular verb, plural noun — ungrammatical]
+```
+
+<br/>
+
 ---
 ## References
 P. Lison and J. Tiedemann, 2016, <a href="http://stp.lingfil.uu.se/~joerg/paper/opensubs2016.pdf"><i>OpenSubtitles2016: Extracting Large Parallel Corpora from Movie and TV Subtitles.</i></a> In Proceedings of the 10th International Conference on Language Resources and Evaluation (LREC 2016)<br/> 

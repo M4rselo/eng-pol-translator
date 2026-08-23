@@ -70,9 +70,25 @@ EN: quit
 
 ---
 
+## Gender-Aware Translation
+
+Polish marks grammatical gender that English simply doesn't — both for the **speaker** and for the person being **addressed**. Control tokens (`<self_f>`/`<self_m>`/`<self_na>`, `<addr_f>`/`<addr_m>`/`<addr_p>`/`<addr_na>`) let the model condition on both at once:
+
+*EN: I would like to talk to you.*
+
+| self \ addr | na | f | m | p |
+|---|---|---|---|---|
+| **na** | Chcę z tobą porozmawiać. | Chcę z tobą porozmawiać. | Chcę z panem porozmawiać. | Chcę z wami porozmawiać. |
+| **f** | Chciałabym z tobą porozmawiać. | Chciałabym z tobą porozmawiać. | Chciałabym z panem porozmawiać. | Chciałabym z wami porozmawiać. |
+| **m** | Chciałbym z tobą porozmawiać. | Chciałbym z tobą porozmawiać. | Chciałbym z panem porozmawiać. | Chciałbym z wami porozmawiać. |
+
+This is the combined speaker/addressee model (v3, in progress) - it'll get its own `translate_v2.py` entrypoint once finalized, separate from the base `translate_v1.py` below. Full methodology, more examples, and known failure modes in `research/gender_agreement.md`.
+
+---
+
 ## Setup & Usage
 
-**Requirements:** Python 3.10+, PyTorch, pandas, numpy, tqdm (see `requirements.txt`)
+**Requirements:** Python 3.10+, PyTorch, pandas, tqdm, matplotlib, IPython (see `requirements.txt`)
 
 **1. Clone the repository**
 ```bash
@@ -86,6 +102,8 @@ pip install -r requirements.txt
 ```
 
 **3. Download model weights**
+
+> **Note:** the linked `predicter_1.pkl` is outdated — it was built against an earlier version of `modules/` and no longer loads with the current code. A working release will be published once the combined speaker/addressee model (see `research/gender_agreement.md`, Solution v3) is finalized.
 
 Download `predicter_1.pkl` (serialized model + tokenizers) from [Google Drive](https://drive.google.com/file/d/1aGExk4IfDADB9nFfD842lkzHs7UGq7Ye/view?usp=sharing) and place it in `data/predicter/`.
 
@@ -113,9 +131,7 @@ EN: quit
 
 - **Handling typos** - right now a misspelled word often breaks the translation. planning to fix this with data augmentation during training so the model learns to deal with imperfect input
 
-- **Gender agreement** - the model struggles with speaker/addressee gender in Polish ("szłam" vs "szedłem"). improving this requires better context inference from the surrounding sentence
-
-- **Style & tone conditioning** - the idea is to let the user provide a few example sentences and have the model pick up on the style and apply it to the translation, without any retraining
+- **Gender agreement** - speaker gender conditioning (`<self_f>`/`<self_m>`/`<self_na>`) is implemented and evaluated (v1/v2). addressee conditioning (`<addr_*>`, combined with speaker conditioning) is implemented and under manual testing - see `research/gender_agreement.md` for current findings, including a known issue where `<self_na>` leaks the addressee's gender instead of staying neutral. next up: proper BLEU/exact-match evaluation for this combined model, and rebalancing training so `<self_na>` cycles through male/female examples instead of drawing from a separate, fixed neutral pool
 
 - **Unique sequence handling** - URLs, long numbers, email addresses - things that don't fit standard vocabulary and currently get mangled
 
@@ -131,14 +147,7 @@ PL: Odwiedziłem mój grnkundl.
 EN: It is neccessary to sign this form.
 PL: To eceuccio, aby podpisać tę formularz.
 ```
-- **Grammatical gender** - the model does not consistently infer the gender of the speaker or subject from context. This affects verb and adjective agreement in Polish, particularly in first-person statements and sentences involving proper names
-```
-EN: John gave Mary a book.
-PL: John dała mary książkę.
-
-EN: If I had known about the problem earlier, I would have fixed it.
-PL: Gdybym wiedziała wcześniej o problemie, naprawiłbym go.
-```
+- **Grammatical gender** - the base model (no gender tokens) does not consistently infer speaker/subject gender from context, affecting verb and adjective agreement in Polish. Actively being addressed with control tokens - see `research/gender_agreement.md` for the full problem writeup and current progress
 - **Idioms** - model struggles with non-literal expressions, translating them word-for-word
 ```
 EN: I'll speak straight from the shoulder.

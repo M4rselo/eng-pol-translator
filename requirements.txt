@@ -8,3 +8,4 @@ pandas==3.0.5
 tqdm==4.70.0
 matplotlib==3.11.1
 ipython==9.16.1
+ipywidgets
