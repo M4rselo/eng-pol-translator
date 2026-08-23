@@ -126,6 +126,33 @@ class BPETokenizer():
             neg_count, seq, pair = heapq.heappop(self.heap)
             if self.pair_counts.get(pair) == -neg_count:
                 return pair
+        
+
+
+class BPEEncoder():
+    def __init__(self, bpe_vocab, bpe_vocab_chrs, thres_tup=55, is_tgt=False):
+        self.vocab_encoder = {"".join(k): v for k, v in bpe_vocab.items()}
+        self.word_encoder = {"".join(k): [self.vocab_encoder.get(x) for x in k] for k, _ in bpe_vocab_chrs}
+        self.vocab_tuple = list(bpe_vocab.keys())[thres_tup:]
+
+    def encode_snt(self, snt_toks):
+        return [y for x in snt_toks for y in self.encode_word(x)]
+
+    def encode_word(self, word):
+        word_factor = [x for x in word] + ['_']
+        word_id = self.word_encoder.get("".join(word_factor), None)
+        if word_id is not None:
+            yield from word_id
+        else:
+            word_pairs = zip(word_factor, word_factor[1:])
+            for pair in self.vocab_tuple:
+                if pair in word_pairs:
+                    p_1, p_2 = map(re.escape, pair)
+                    word_factor = re.sub(rf"(?<=\s){p_1}\s{p_2}(?=\s)", f"{pair[0]}{pair[1]}", f" {' '.join(word_factor)} ").split()
+                    word_pairs = zip(word_factor, word_factor[1:])
+            yield from [self.vocab_encoder[x] for x in word_factor]
+
+            
 
 # class BPETokenizer():
 #     def __init__(self, vocab_chrs, vocab_pairs, vocab_size, num_switch=500, is_tgt=False):
@@ -216,28 +243,3 @@ class BPETokenizer():
 #             neg_count, seq, pair = heapq.heappop(self.heap)
 #             if self.pair_counts.get(pair) == -neg_count:
 #                 return pair
-        
-
-
-class BPEEncoder():
-    def __init__(self, bpe_vocab, bpe_vocab_chrs, thres_tup=55, is_tgt=False):
-        self.vocab_encoder = {"".join(k): v for k, v in bpe_vocab.items()}
-        self.word_encoder = {"".join(k): [self.vocab_encoder.get(x) for x in k] for k, _ in bpe_vocab_chrs}
-        self.vocab_tuple = list(bpe_vocab.keys())[thres_tup:]
-
-    def encode_snt(self, snt_toks):
-        return [y for x in snt_toks for y in self.encode_word(x)]
-
-    def encode_word(self, word):
-        word_factor = [x for x in word] + ['_']
-        word_id = self.word_encoder.get("".join(word_factor), None)
-        if word_id is not None:
-            yield from word_id
-        else:
-            word_pairs = zip(word_factor, word_factor[1:])
-            for pair in self.vocab_tuple:
-                if pair in word_pairs:
-                    p_1, p_2 = map(re.escape, pair)
-                    word_factor = re.sub(rf"(?<=\s){p_1}\s{p_2}(?=\s)", f"{pair[0]}{pair[1]}", f" {' '.join(word_factor)} ").split()
-                    word_pairs = zip(word_factor, word_factor[1:])
-            yield from [self.vocab_encoder[x] for x in word_factor]
