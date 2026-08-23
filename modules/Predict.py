@@ -1,6 +1,6 @@
 import torch, re
 import torch.nn.functional as F
-from BPE_tokenizer import tokenize_eng
+from .BPE_tokenizer import tokenize_eng
 
 
 

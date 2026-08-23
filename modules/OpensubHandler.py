@@ -2,7 +2,7 @@ import pandas as pd
 import re
 from collections import defaultdict
 from tqdm import tqdm
-from BPE_tokenizer import tokenize_eng, tokenize_pol
+from .BPE_tokenizer import tokenize_eng, tokenize_pol
 
 
 def upload_to_dataframe(root, files, num_lines):

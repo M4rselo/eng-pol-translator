@@ -3,7 +3,7 @@ from IPython.display import clear_output
 import torch
 from tqdm.notebook import tqdm
 from statistics import mean
-from Data import data_loader
+from .Data import data_loader
 
 
 
