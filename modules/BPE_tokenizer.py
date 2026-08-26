@@ -152,7 +152,36 @@ class BPEEncoder():
                     word_pairs = zip(word_factor, word_factor[1:])
             yield from [self.vocab_encoder[x] for x in word_factor]
 
-            
+
+
+def build_tokenizers(df, eng_col, pol_col, eng_vocab_size, pol_vocab_size, num_switch=600, ref_tokens=None):
+    vocab_chars_eng, pair_vocab_eng, vocab_chars_pol, pair_vocab_pol = get_unique_freqs(df, eng_col, pol_col)
+
+    tokenizer_eng = BPETokenizer(vocab_chars_eng, pair_vocab_eng, eng_vocab_size, num_switch)
+    tokenizer_pol = BPETokenizer(vocab_chars_pol, pair_vocab_pol, pol_vocab_size, num_switch,
+                                  is_tgt=True, tgt_ref_toks=['<bos>'] + list(ref_tokens or []))
+    return tokenizer_eng, tokenizer_pol
+
+
+
+def build_encoders(tokenizer_eng, tokenizer_pol, thres_eng, thres_pol):
+    encoder_eng = BPEEncoder(tokenizer_eng.vocab, tokenizer_eng.vocab_chrs, thres_eng)
+    encoder_pol = BPEEncoder(tokenizer_pol.vocab, tokenizer_pol.vocab_chrs, thres_pol, True)
+    return encoder_eng, encoder_pol
+
+
+
+def make_ref_encoder(tokenizer_pol, encoder_pol, ref_specs, pol_col='pol_split'):
+    id_specs = [(col, {val: tokenizer_pol.vocab[tok] for val, tok in val_map.items()}) for col, val_map in ref_specs]
+    bos_id = tokenizer_pol.vocab['<bos>']
+    eos_id = tokenizer_pol.vocab['<eos>']
+
+    def encode_row(row):
+        prefix = [id_map[row[col]] for col, id_map in id_specs]
+        return prefix + [bos_id] + encoder_pol.encode_snt(row[pol_col]) + [eos_id]
+    return encode_row
+
+
 
 # class BPETokenizer():
 #     def __init__(self, vocab_chrs, vocab_pairs, vocab_size, num_switch=500, is_tgt=False):

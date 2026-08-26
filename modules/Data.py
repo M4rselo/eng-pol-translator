@@ -2,7 +2,7 @@ import torch
 from torch.utils.data import Dataset, DataLoader
 from torch.nn.utils.rnn import pad_sequence
 import pandas as pd
-import re
+import re, os, pickle
 from collections import Counter
 
 def upload_tsv(path, col_drop=None, sep='\t', header=None):
@@ -66,9 +66,28 @@ def tokens_to_id(df, src_col, tgt_col, min_freq=2):
 def shuffle_split(df, tr_per):
     df = df.sample(frac=1).reset_index(drop=True)
     split_index = int(len(df) * tr_per)
-    train_df = df.iloc[:split_index] 
+    train_df = df.iloc[:split_index]
     val_df = df.iloc[split_index:].reset_index(drop=True)
     return train_df, val_df
+
+def sample_ref_conversion(df, col, tgt_val, n, na_val='NA', random_state=None):
+    df_proc = df.copy()
+    na_idxs = df_proc[df_proc[col] == na_val].index
+    chosen_idxs = df_proc.loc[na_idxs].sample(n=n, random_state=random_state).index
+    df_proc.loc[chosen_idxs, col] = tgt_val
+    return df_proc
+
+def trim_by_ids(df, id_cols, max_len):
+    df_proc = df.copy()
+    mask = pd.concat([df_proc[col].str.len() <= max_len for col in id_cols], axis=1).all(axis=1)
+    print(f"Dropped {(~mask).sum()} / {len(df_proc)} rows exceeding max_len={max_len}")
+    return df_proc[mask].reset_index(drop=True)
+
+def save_artifacts(save_dir, **objects):
+    os.makedirs(save_dir, exist_ok=True)
+    for name, obj in objects.items():
+        with open(f"{save_dir}/{name}.pkl", 'wb') as f:
+            pickle.dump(obj, f)
 
 class EngPolDataset(Dataset):
     def __init__(self, df, src_col, lbl_col):
