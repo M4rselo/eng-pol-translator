@@ -2,7 +2,7 @@ import torch
 from torch.utils.data import Dataset, DataLoader
 from torch.nn.utils.rnn import pad_sequence
 import pandas as pd
-import re, os, pickle
+import re, os, pickle, random
 from collections import Counter
 
 def upload_tsv(path, col_drop=None, sep='\t', header=None):
@@ -99,6 +99,31 @@ class EngPolDataset(Dataset):
 
     def __getitem__(self, idx):
         return torch.tensor(self.src_eng[idx]), torch.tensor(self.tgt_pol[idx])
+
+class EngPolAugDataset(Dataset):
+    def __init__(self, df, src_col, lbl_col, self_opts, addr_opts):
+        self.src_eng = df[src_col]
+        self.tgt_pol = df[lbl_col]
+
+        self.self_na_mask = df['self_ref'] == 'NA'
+        self.addr_na_mask = df['addr_ref'] == 'NA'
+
+        self.self_opts = self_opts
+        self.addr_opts = addr_opts
+
+    def __len__(self):
+        return len(self.src_eng)
+
+    def _aug_ref(self, pol, idx):
+        if self.self_na_mask[idx]:
+            pol[0] = self.self_opts[int(random.random() * 3)]
+        if self.addr_na_mask[idx]:
+            pol[1] = self.addr_opts[int(random.random() * 3)]
+        return pol
+
+    def __getitem__(self, idx):
+        pol = self._aug_ref(list(self.tgt_pol[idx]), idx)
+        return torch.tensor(self.src_eng[idx]), torch.tensor(pol)
 
 def collate_fn(batch):
     eng_batch, pol_batch = zip(*batch)
