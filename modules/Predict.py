@@ -10,24 +10,22 @@ class PredictionModule():
         self.alpha, self.max_len, self.vocab_size = alpha, max_seq, tokenizer_pol.vocab_size
         self.encode_eng = encoder_eng.encode_snt
         self.bos_id = tokenizer_pol.vocab['<bos>']
-        self.ref_vocab = {'self_f': tokenizer_pol.vocab['<self_f>'],
-                          'self_m': tokenizer_pol.vocab['<self_m>'],
-                          'self_na': tokenizer_pol.vocab['<self_na>'],
-                          'addr_f': tokenizer_pol.vocab['<addr_f>'],
-                          'addr_m': tokenizer_pol.vocab['<addr_m>'],
-                          'addr_p': tokenizer_pol.vocab['<addr_p>'],
+        self.ref_vocab = {'self_f': tokenizer_pol.vocab['<self_f>'], 'self_m': tokenizer_pol.vocab['<self_m>'],
+                          'self_na': tokenizer_pol.vocab['<self_na>'], 'addr_f': tokenizer_pol.vocab['<addr_f>'],
+                          'addr_m': tokenizer_pol.vocab['<addr_m>'], 'addr_p': tokenizer_pol.vocab['<addr_p>'],
                           'addr_na': tokenizer_pol.vocab['<addr_na>']}
         
         self.blocked_ids = list(self.ref_vocab.values()) + [self.bos_id]
         self.rev_pol = {v: k for k, v in encoder_pol.vocab_encoder.items()}
         self.eos_id = tokenizer_pol.vocab['<eos>']
+        self.prefix_len = self.model.n_ref + 1
 
     def get_enc_input(self, eng_ids):
         X_enc = torch.tensor(eng_ids, device=self.device).view(1, -1)
         return X_enc, torch.tensor(X_enc.size(1), device=self.device).view(-1, 1)
 
     def translate_ids(self, eng_ids, pol_ids, num_k=5):
-        init_seq = torch.tensor(pol_ids[:2], device=self.device).view(1, -1)
+        init_seq = torch.tensor(pol_ids[:self.prefix_len], device=self.device).view(1, -1)
         pred_pol = self.predict_ids(*self.get_enc_input(eng_ids), init_seq, num_k)
         return pol_ids[:2] + pred_pol
 
