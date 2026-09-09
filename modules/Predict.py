@@ -63,7 +63,7 @@ class PredictionModule():
             logs_list, seqs_list = logs_tens.tolist(), seqs_tens.tolist()
             finished_seqs = []
 
-            for _ in range(self.max_len - 2):
+            for _ in range(self.max_len - self.prefix_len):
                 Y_dec, dec_state = self.model.decoder(seqs_tens[:, -1:], dec_state)
                 Y_log = F.log_softmax(Y_dec, dim=2).view(num_k, -1)
                 Y_log[:, self.blocked_ids] = float('-inf')
