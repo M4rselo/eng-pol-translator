@@ -1,6 +1,6 @@
 import math, pickle
 from collections import defaultdict
-from statistics import mean, median
+from statistics import mean
 from tqdm.auto import tqdm
 from . import Model_ref, Trainer, Predict
 
@@ -29,8 +29,9 @@ class BleuEvaluation():
 
         trainer = Trainer.TrainerModule(batch_size=64)
         trainer.load_checkpoint(model, checkpoint_path)
-        self.predicter = Predict.PredictionModule(tokenizer_eng, tokenizer_pol, encoder_eng, encoder_pol,
-                                                  model, alpha=0.6, max_seq=max_seq)
+        predicter_cls = Predict.PredictionModuleRef if n_ref == 1 else Predict.PredictionModule
+        self.predicter = predicter_cls(tokenizer_eng, tokenizer_pol, encoder_eng, encoder_pol,
+                                       model, alpha=0.6, max_seq=max_seq)
 
     def load_artifacts(self, artifacts_path):
         artifacts = {}
@@ -40,12 +41,15 @@ class BleuEvaluation():
         return artifacts['tokenizer_eng'], artifacts['tokenizer_pol'], artifacts['encoder_eng'], artifacts['encoder_pol']
 
     def get_avg_bleu(self, sample_df, num_k):
+        return mean(self.score_series(sample_df, num_k))
+
+    def score_series(self, sample_df, num_k):
         bleu_scores = []
-        for ids_eng, ids_pol in tqdm(zip(sample_df['eng_ids'], sample_df['pol_ids'])):
+        for ids_eng, ids_pol in tqdm(zip(sample_df['eng_ids'], sample_df['pol_ids']), leave=False):
             pred_pol = self.predicter.translate_ids(ids_eng, ids_pol)
             score = self.bleu(list(map(str, ids_pol[self.n_prefix:-1])), list(map(str, pred_pol[self.n_prefix:-1])), num_k)
             bleu_scores.append(score)
-        return mean(bleu_scores), median(bleu_scores)
+        return bleu_scores
 
     def bleu(self, lbl_seq, pred_seq, num_k):
         len_label, len_pred = len(lbl_seq), len(pred_seq)
