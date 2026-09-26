@@ -144,12 +144,12 @@ class BPEEncoder():
         if word_id is not None:
             yield from word_id
         else:
-            word_pairs = zip(word_factor, word_factor[1:])
+            word_pairs = list(zip(word_factor, word_factor[1:]))
             for pair in self.vocab_tuple:
                 if pair in word_pairs:
                     p_1, p_2 = map(re.escape, pair)
                     word_factor = re.sub(rf"(?<=\s){p_1}\s{p_2}(?=\s)", f"{pair[0]}{pair[1]}", f" {' '.join(word_factor)} ").split()
-                    word_pairs = zip(word_factor, word_factor[1:])
+                    word_pairs = list(zip(word_factor, word_factor[1:]))
             yield from [self.vocab_encoder[x] for x in word_factor]
 
 
@@ -180,6 +180,21 @@ def make_ref_encoder(tokenizer_pol, encoder_pol, ref_specs, pol_col='pol_split')
         prefix = [id_map[row[col]] for col, id_map in id_specs]
         return prefix + [bos_id] + encoder_pol.encode_snt(row[pol_col]) + [eos_id]
     return encode_row
+
+
+
+def build_typo_map(encoder_eng, dct_typos):
+    typo_map = {}
+    for key, variants in dct_typos.items():
+        key_ids = list(encoder_eng.encode_word(key))
+        if len(key_ids) != 1:
+            continue
+        var_ids = [list(encoder_eng.encode_word(v)) for v in variants]
+        if var_ids:
+            typo_map[key_ids[0]] = var_ids
+
+    print(f"Kept {len(typo_map)} / {len(dct_typos)} typo keys as single-token entries")
+    return typo_map
 
 
 
