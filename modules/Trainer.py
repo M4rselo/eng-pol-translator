@@ -13,8 +13,9 @@ from .Data import data_loader
 ======================================================
 """
 class TrainerModule():
-    def __init__(self, batch_size):
+    def __init__(self, batch_size, num_workers=0):
         self.batch_size = batch_size
+        self.num_workers = num_workers
         self.scaler = torch.amp.GradScaler('cuda')
         self.curr_epoch = 0
 
@@ -22,8 +23,8 @@ class TrainerModule():
         self.plotter = PlotterModule(title)
 
     def prepare_data(self, train_data, val_data):
-        self.train_dataloader = data_loader(train_data, self.batch_size)
-        self.val_dataloader = data_loader(val_data, self.batch_size)
+        self.train_dataloader = data_loader(train_data, self.batch_size, num_workers=self.num_workers)
+        self.val_dataloader = data_loader(val_data, self.batch_size, num_workers=self.num_workers)
 
     def init_run(self):
         dummy_batch = next(iter(self.train_dataloader))
