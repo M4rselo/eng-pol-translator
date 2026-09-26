@@ -125,12 +125,35 @@ class EngPolAugDataset(Dataset):
         pol = self._aug_ref(list(self.tgt_pol[idx]), idx)
         return torch.tensor(self.src_eng[idx]), torch.tensor(pol)
 
+class EngPolFullAugDataset(EngPolAugDataset):
+    def __init__(self, df, src_col, lbl_col, self_opts, addr_opts, typo_map, typo_p=0.2):
+        super().__init__(df, src_col, lbl_col, self_opts, addr_opts)
+        self.typo_map = typo_map
+        self.typo_p = typo_p
+
+    def _aug_typo(self, eng):
+        return [tok for src in eng for tok in
+                (random.choice(self.typo_map[src]) if src in self.typo_map and random.random() < self.typo_p
+                 else (src,))]
+
+    def __getitem__(self, idx):
+        pol = self._aug_ref(list(self.tgt_pol[idx]), idx)
+        eng = self._aug_typo(self.src_eng[idx])
+        return torch.tensor(eng), torch.tensor(pol)
+
 def collate_fn(batch):
     eng_batch, pol_batch = zip(*batch)
     eng_padded = pad_sequence(eng_batch, batch_first=True, padding_value=0)
     pol_padded = pad_sequence(pol_batch, batch_first=True, padding_value=0)
-    eng_val_lens = (eng_padded != 0).sum(dim=-1, keepdims=True)
+    eng_val_lens = (eng_padded != 0).sum(dim=-1, keepdim=True)
     return eng_padded, pol_padded, eng_val_lens
 
-def data_loader(data, batch_size):
-    return DataLoader(data, batch_size=batch_size, collate_fn=collate_fn)
+def data_loader(data, batch_size, num_workers=0, persistent_workers=False):
+    return DataLoader(
+        data,
+        batch_size=batch_size,
+        collate_fn=collate_fn,
+        num_workers=num_workers,
+        persistent_workers=persistent_workers if num_workers > 0 else False,
+        multiprocessing_context='spawn' if num_workers > 0 else None,
+    )
