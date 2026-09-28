@@ -183,3 +183,5 @@ cython_debug/
 /local_data
 /notebooks
 data/predicter/predicter_1.pkl
+research/test_typos.ipynb
+research/training_notebooks/training-translator-v1_6.ipynb
