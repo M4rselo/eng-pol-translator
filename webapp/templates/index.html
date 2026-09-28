@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Gender Context Translator</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header class="topbar">
+    <h1>Gender Context Translator</h1>
+    <label class="version-picker">
+      Version:
+      <select id="version-select">
+        {% for v in versions %}<option value="{{ v }}" {% if v == "v1_5" %}selected{% endif %}>{{ v }}</option>{% endfor %}
+      </select>
+    </label>
+  </header>
+
+  <nav class="tabs">
+    <button class="tab-btn active" data-tab="translate">Translate</button>
+    <button class="tab-btn" data-tab="insight">Attention Map</button>
+    <button class="tab-btn" data-tab="comparison">Comparison</button>
+  </nav>
+
+  <section id="tab-translate" class="tab-panel active">
+    <div class="controls-row">
+      <div id="ref-buttons" class="ref-buttons-col"></div>
+
+      <details class="advanced-settings">
+        <summary>Advanced settings</summary>
+        <div class="advanced-body">
+          <label title="Length-penalty exponent used by beam search. Higher values favor longer translations, lower favor shorter ones. It only changes which candidate wins the search -- never how confident the result looks.">
+            alpha
+            <input type="range" id="alpha-slider" min="0" max="3" step="0.1" value="0.6">
+            <span id="alpha-val">0.6</span>
+          </label>
+          <label title="Beam width: how many candidate translations are kept at each decoding step before the best one is chosen. Higher can occasionally improve quality but is slower.">
+            num_k (beam width)
+            <input type="number" id="numk-input" min="1" max="20" step="1" value="5">
+          </label>
+        </div>
+      </details>
+    </div>
+
+    <div class="translate-grid">
+      <div class="box">
+        <div class="box-label">
+          <span>English</span>
+          <span id="token-counter" class="token-counter" hidden></span>
+        </div>
+        <textarea id="src-text" rows="6" placeholder="Type an English sentence...">I would like to talk to you.</textarea>
+        <div class="examples-row" id="examples-row">
+          <span class="examples-label">Try:</span>
+          <button type="button" class="example-chip" data-sample="I would like to talk to you.">I would like to talk to you.</button>
+          <button type="button" class="example-chip" data-sample="I have never been to Paris.">I have never been to Paris.</button>
+          <button type="button" class="example-chip" data-sample="I am ready.">I am ready.</button>
+        </div>
+        <div class="box-footer"></div>
+        <div class="chip-row-label">tokens</div>
+        <div id="token-chips" class="chip-row"></div>
+      </div>
+
+      <div class="swap-arrow-col" aria-hidden="true">
+        <div class="arrow-spacer-top"></div>
+        <div class="arrow-mid">&rarr;</div>
+        <div class="arrow-spacer-bottom"></div>
+      </div>
+
+      <div class="box">
+        <div class="box-label">
+          <span>Polish</span>
+          <span id="confidence-badge" class="confidence-badge" hidden></span>
+        </div>
+        <div id="tgt-text" class="output-text" aria-live="polite"></div>
+        <div class="box-footer">
+          <label class="wordconf-toggle">
+            <input type="checkbox" id="wordconf-toggle"> Per-word confidence
+            <span id="word-legend" class="legend" hidden>
+              <span>0%</span><span class="legend-bar"></span><span>100%</span>
+            </span>
+          </label>
+        </div>
+        <div class="chip-row-label">tokens</div>
+        <div id="tgt-chips" class="chip-row"></div>
+      </div>
+    </div>
+
+    <p id="status-msg" class="status-msg"></p>
+  </section>
+
+  <section id="tab-insight" class="tab-panel">
+    <div id="insight-status" class="status-msg"></div>
+
+    <h3>Attention to reference tokens</h3>
+    <p class="hint">How much each generated word attended to the gender/addressee tokens themselves (self-attention) -- this is what the gender-context tokens actually influenced.</p>
+    <div id="prefix-attn-map" class="table-wrap"></div>
+
+    <h3>Attention to source sentence</h3>
+    <p class="hint">Cross-attention (decoder &rarr; encoder), averaged over all blocks and heads, for the sentence currently in the Translate tab.</p>
+    <div id="insight-map" class="table-wrap"></div>
+  </section>
+
+  <section id="tab-comparison" class="tab-panel">
+    <h2>All reference-token combinations</h2>
+    <p class="hint">Translates the current sentence with every combination of reference tokens for this version, using the current alpha / num_k. Computed on demand only.</p>
+    <div class="compare-controls">
+      <button id="compare-run">Compare all combinations</button>
+      <div id="compare-groupby" class="groupby-toggle" hidden>
+        Group by:
+        <button type="button" class="groupby-btn active" data-group="self">Speaker</button>
+        <button type="button" class="groupby-btn" data-group="addr">Addressee</button>
+      </div>
+    </div>
+    <div id="compare-status" class="status-msg"></div>
+    <div id="compare-results" class="compare-grid"></div>
+  </section>
+
+  <script>
+    const UI_CONFIGS = {{ ui_configs | tojson }};
+  </script>
+  <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>
