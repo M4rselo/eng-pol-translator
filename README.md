@@ -1,170 +1,52 @@
-# English-Polish Neural Machine Translator
+# Gender Context English-Polish Translator
 
-A sequence-to-sequence neural machine translator built from scratch in *PyTorch*, without using any pre-trained models or high-level NLP libraries.
-
----
-
-## About
-
-- **Transformer architecture** - encoder-decoder with multi-head attention, positional encoding, residual connections, and layer normalization
-- **BPE tokenizer** - Byte Pair Encoding implemented using a priority queue, trained separately for English (24k vocab) and Polish (48k vocab)
-- **Training pipeline** - custom training loop with mixed precision (fp16), gradient clipping, Xavier weight initialization, and checkpoint saving per epoch
-- **Beam search** - custom implementation with length penalty (α = 0.6) and decoder cache for faster inference
-
-**The project is currently in active development. Core translation functionality works well; additional features and improvements are ongoing.**
+A sequence-to-sequence neural machine translator built from scratch in *PyTorch*, without using any pre-trained models or high-level NLP libraries — with explicit control over the speaker's and addressee's gender and number in the Polish output.
 
 ---
 
-## Architecture
-*Current model - base translator (v1)*
-| Parameter | Value |
-|---|---|
-| Model type | Encoder-Decoder Transformer |
-| Hidden size (d_model) | 512 |
-| Encoder/Decoder blocks | 4 |
-| Attention heads | 8 |
-| FFN hidden size | 1024 |
-| Dropout | 0.3 |
-| English vocab size | 24,000 |
-| Polish vocab size | 48,000 |
-| Max sequence length | 51 tokens |
+## Motivation
 
----
-## Data
+Most translation tools we use day to day work sentence by sentence, with no memory of who's speaking or who's being spoken to. That's rarely a problem in English, but Polish is a heavily gendered language: verbs, adjectives, and even some nouns change form depending on the speaker's and listener's gender and number.
 
-Trained on 882,569 pairs / validated on 109,082 pairs. 
+Polish is also going through a genuinely interesting linguistic moment right now: feminine forms of nouns (*feminatywy*), such as **członkini** instead of the traditionally default **członek**, are becoming more common — and, depending on who you ask, more accepted. This isn't entirely new territory either: forms like **nauczycielka** ("female teacher") have long been completely standard and uncontroversial. What's changing is how far that pattern extends into roles and titles that used to default to the masculine form.
 
-| Dataset | Style | Source |
-|---|---|---|
-| Europarl | Formal | European Parliament proceedings |
-| OpenSubtitles | Colloquial | Movie and TV subtitles |
-
-**No test set yet - evaluation metrics (BLEU) are planned for a future update.**
-
----
-## Examples
+None of this is something a context-free translator can reason about, and the results can range from mildly inaccurate to unintentionally funny. Here's a real chain of attempts with Google Translate, trying to coax a single sentence into coming out right:
 
 ```
-Eng-Pol Translator ready. Type 'quit' to exit.
-
-EN: Although it was raining, we decided to go for a walk.
-PL: Chociaż padało, postanowiliśmy iść na spacer.
-
-EN: My mother-in-law visited us last weekend.
-PL: Moja teściowa odwiedziła nas w miniony weekend.
-
-EN: Member states are required to implement the directive within two years.
-PL: Państwa członkowskie muszą wdrożyć dyrektywę w ciągu dwóch lat.
-
-EN: We need couple things: - a tent, - a map, - and water.
-PL: Potrzebujemy kilku rzeczy: namiotu, mapy i wody.
-
-EN: - No, I am not ready yet, - he replied quietly.
-PL: - nie, jeszcze nie jestem gotowy, odpowiedział spokojnie.
-
-EN: We must ensure that human rights are protected across all member states.
-PL: Musimy zapewnić ochronę praw człowieka we wszystkich państwach członkowskich.
-
-EN: quit
+EN: I knew you were wrong.
+PL: Wiedziałem, że się mylisz.
 ```
 
----
-
-## Gender-Aware Translation
-
-Polish marks grammatical gender that English simply doesn't — both for the **speaker** and for the person being **addressed**. Control tokens (`<self_f>`/`<self_m>`/`<self_na>`, `<addr_f>`/`<addr_m>`/`<addr_p>`/`<addr_na>`) let the model condition on both at once:
-
-*EN: I would like to talk to you.*
-
-| self \ addr | na | f | m | p |
-|---|---|---|---|---|
-| **na** | Chcę z tobą porozmawiać. | Chcę z tobą porozmawiać. | Chcę z panem porozmawiać. | Chcę z wami porozmawiać. |
-| **f** | Chciałabym z tobą porozmawiać. | Chciałabym z tobą porozmawiać. | Chciałabym z panem porozmawiać. | Chciałabym z wami porozmawiać. |
-| **m** | Chciałbym z tobą porozmawiać. | Chciałbym z tobą porozmawiać. | Chciałbym z panem porozmawiać. | Chciałbym z wami porozmawiać. |
-
-This is the combined speaker/addressee model (v3, in progress) - it'll get its own `translate_v2.py` entrypoint once finalized, separate from the base `translate_v1.py` below. Full methodology, more examples, and known failure modes in `research/gender_agreement.md`.
-
----
-
-## Setup & Usage
-
-**Requirements:** Python 3.10+, PyTorch, pandas, tqdm, matplotlib, IPython (see `requirements.txt`)
-
-**1. Clone the repository**
-```bash
-git clone https://github.com/M4rselo/eng-pol-translator
-cd eng-pol-translator
-```
-
-**2. Install dependencies**
-```bash
-pip install -r requirements.txt
-```
-
-**3. Download model weights**
-
-> **Note:** the linked `predicter_1.pkl` is outdated — it was built against an earlier version of `modules/` and no longer loads with the current code. A working release will be published once the combined speaker/addressee model (see `research/gender_agreement.md`, Solution v3) is finalized.
-
-Download `predicter_1.pkl` (serialized model + tokenizers) from [Google Drive](https://drive.google.com/file/d/1aGExk4IfDADB9nFfD842lkzHs7UGq7Ye/view?usp=sharing) and place it in `data/predicter/`.
-
-**4. Run the translator**
-```
-python modules/translate_v1.py
-```
+Looks right. But what if "you" means more than one person?
 
 ```
-Eng-Pol Translator ready. Type 'quit' to exit.
-
-EN: Have you ever been to Paris?
-PL: Byłeś kiedyś w paryżu?
-
-EN: quit
+EN: I knew you (guys) were wrong.
+PL: Wiedziałem, że się mylicie.
 ```
 
----
+Still right. Now, what if the speaker is a girl?
 
-## Planned & In Progress
-
-- **Data analysis notebook** - notebook walking through the full data pipeline, from raw TSV files to model-ready tensors: what the data looked like, what got cleaned and why, how tokenization affects vocabulary coverage
-
-- **BLEU evaluation** - automated scoring on the validation set, broken down by sentence type (simple, complex, formal)
-
-- **Handling typos** - right now a misspelled word often breaks the translation. planning to fix this with data augmentation during training so the model learns to deal with imperfect input
-
-- **Gender agreement** - speaker gender conditioning (`<self_f>`/`<self_m>`/`<self_na>`) is implemented and evaluated (v1/v2). addressee conditioning (`<addr_*>`, combined with speaker conditioning) is implemented and under manual testing - see `research/gender_agreement.md` for current findings, including a known issue where `<self_na>` leaks the addressee's gender instead of staying neutral. next up: proper BLEU/exact-match evaluation for this combined model, and rebalancing training so `<self_na>` cycles through male/female examples instead of drawing from a separate, fixed neutral pool
-
-- **Unique sequence handling** - URLs, long numbers, email addresses - things that don't fit standard vocabulary and currently get mangled
-
----
-
-## Known Limitations
-
-- **Typos** - a single misspelled word can significantly affect translation quality
 ```
-EN: I visited my grandfathher.
-PL: Odwiedziłem mój grnkundl.
+EN: I (girl) knew you (guys) were wrong.
+PL: Wiedziałem (dziewczyny), że się mylicie.
+```
 
-EN: It is neccessary to sign this form.
-PL: To eceuccio, aby podpisać tę formularz.
-```
-- **Grammatical gender** - the base model (no gender tokens) does not consistently infer speaker/subject gender from context, affecting verb and adjective agreement in Polish. Actively being addressed with control tokens - see `research/gender_agreement.md` for the full problem writeup and current progress
-- **Idioms** - model struggles with non-literal expressions, translating them word-for-word
-```
-EN: I'll speak straight from the shoulder.
-PL: Porozmawiam prosto z ramię.
+Not quite — "wiedziałem" is still the masculine form, and Google just stapled "(dziewczyny)" onto the sentence without doing anything with it. Maybe dropping "(guys)" fixes it?
 
-EN: He feels under the weather.
-PL: Czuje się pod wodą.
 ```
-- **Unique sequences** - numbers, URLs, and other rare character sequences outside standard vocabulary tend to get mangled or omitted during translation
+EN: I (girl) knew you were wrong.
+PL: Wiedziałem (dziewczyno), że się mylisz.
 ```
-EN: It costs 235660$.
-PL: Kosztuje 25656000 $.
 
-EN: My nickname is M4rselo.
-PL: Nazywam się m4see.
+Nope, same problem, still masculine. One more try, rephrasing more aggressively this time:
+
 ```
----
-## References
-P. Lison and J. Tiedemann, 2016, <a href="http://stp.lingfil.uu.se/~joerg/paper/opensubs2016.pdf"><i>OpenSubtitles2016: Extracting Large Parallel Corpora from Movie and TV Subtitles.</i></a> In Proceedings of the 10th International Conference on Language Resources and Evaluation (LREC 2016)<br/> 
-<br/> P. Koehn, 2005, Europarl: A Parallel Corpus for Statistical Machine Translation. MT Summit
+EN: I (as a girl) knew you (guys) were wrong.
+PL: Jako dziewczyna, wiedziałam, że się mylicie.
+```
+
+There it is — correct speaker gender, correct addressee plurality. But getting there took mangling the English sentence into something nobody would naturally write, purely to smuggle context through a translator that has no way to ask for it directly.
+
+This particular example is trivial — you could just fix "wiedziałem" to "wiedziałam" by hand in five seconds. But scale it up to a whole document, a story, a hundred-line chat log with this happening throughout, and manual correction stops being trivial fast. That's the actual problem this project explores: what if the translator itself took speaker/addressee gender and number as explicit input, instead of guessing — or not even trying?
+
+*A quick disclaimer: this problem is absolutely solvable more easily by prompting an LLM, or by fine-tuning an existing state-of-the-art translation model. Neither is what this repo does. Everything here — tokenizer, model, beam search — is built from scratch in PyTorch, without any pre-trained weights, for the sake of understanding the problem end to end rather than reaching for the most practical tool. It isn't meant to be a revolutionary MT system; it's a from-scratch exploration of a genuinely interesting corner of the problem.*
