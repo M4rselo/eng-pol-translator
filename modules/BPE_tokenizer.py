@@ -150,7 +150,14 @@ class BPEEncoder():
                     p_1, p_2 = map(re.escape, pair)
                     word_factor = re.sub(rf"(?<=\s){p_1}\s{p_2}(?=\s)", f"{pair[0]}{pair[1]}", f" {' '.join(word_factor)} ").split()
                     word_pairs = list(zip(word_factor, word_factor[1:]))
-            yield from [self.vocab_encoder[x] for x in word_factor]
+            # .get(..., <unk>) instead of a raw [x] lookup: a character never
+            # seen during training (e.g. from live user input) would
+            # otherwise raise KeyError here. Every character that occurs in
+            # training data is already in vocab_encoder by construction, so
+            # this fallback is only ever exercised on genuinely novel input
+            # -- training-time behavior is unchanged.
+            unk_id = self.vocab_encoder['<unk>']
+            yield from [self.vocab_encoder.get(x, unk_id) for x in word_factor]
 
 
 
