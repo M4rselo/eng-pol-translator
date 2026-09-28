@@ -10,10 +10,10 @@ Most translation tools we use day to day work sentence by sentence, with no memo
 
 Polish is also going through a genuinely interesting linguistic moment right now: feminine forms of nouns (*feminatywy*), such as **członkini** instead of **członek**, are becoming more common - and, depending on who you ask, more accepted. This isn't entirely new territory either: forms like **nauczycielka** ("female teacher") have long been completely standard and uncontroversial. What's changing is how far that pattern extends into roles and titles that used to default to the masculine form.
 
-None of this is something a context-free translator can reason about, and the results can range from mildly inaccurate to unintentionally funny. 
+None of this is something a context-free translator can reason about, and the results can range from mildly inaccurate to unintentionally funny.
 
-<br> **Here's a real chain of attempts with ***Google Translate***, trying to coax a single sentence into coming out right:** </br>
-<br>
+##### **Here's a real chain of attempts with ***Google Translate***, trying to coax a single sentence into coming out right:**
+---
 
 ```
 EN: I knew you were wrong.
@@ -56,4 +56,61 @@ There it is - correct speaker gender, correct addressee plurality. But getting t
 
 Of course, this particular example is trivial, and you could just fix "wiedziałem" to "wiedziałam" by hand in a second. But scale it up to a whole document, a story, a hundred-line chat log with this happening throughout, and manual correction stops being a "quick fix". That's the actual problem this project explores: what if the translator itself took speaker/addressee gender and number as explicit input, instead of guessing?
 
-*A quick disclaimer: this problem is absolutely solvable more easily by prompting an LLM, or by fine-tuning an existing state-of-the-art translation model. Neither is what this repo does. Everything here — tokenizer, model, beam search — is built from scratch in PyTorch, without any pre-trained weights, for the sake of understanding the problem end to end rather than reaching for the most practical tool. It isn't meant to be a revolutionary MT system; it's a from-scratch exploration of a genuinely interesting corner of the problem.*
+---
+
+## Approach
+
+*This problem is absolutely solvable more easily by prompting an LLM, or by fine-tuning an existing SOTA translation model. This repo
+deliberately does neither.* The goal wasn't to build the most practical tool, but to understand the problem end to end — from raw subtitle data to a model
+that can be told who's speaking and who's being spoken to.
+
+Everything below is implemented from scratch in *PyTorch*, with no pre-trained weights:
+
+- **Data** — English-Polish pairs from *OpenSubtitles*, plus first- and second-person sentences extracted and labelled by grammatical gender using Polish
+verb endings (*-łam / -łem*, *-łaś / -łeś*, *pan / pani*, *wy*-forms).
+- **Tokenizer** — a custom BPE tokenizer, trained separately for English and Polish.
+- **Model** — an encoder-decoder Transformer (multi-head attention, positional encoding, residual connections, layer norm).
+- **Context control** — two control tokens are prefixed to the decoder input, one for the speaker and one for the addressee:
+  `<self_f | self_m | self_na>` `<addr_f | addr_m | addr_p | addr_na>` `<bos> ...`
+  During training, sentences without a gender label get a random context token, so the model learns to change the output *only when Polish actually has a
+grammatical choice to make*.
+- **Inference** — a custom beam search with a length penalty and a decoder cache.
+
+The full story of how the gender handling evolved (v1 → v3), including evaluation and failure cases, is documented in
+[`research/gender_agreement.md`](research/gender_agreement.md).
+
+---
+
+## Results
+
+The same English sentence, translated under different speaker contexts:
+
+```
+EN: I would like to talk to you.
+─────────────────────────────────────────────
+<self_f>   Chciałabym z tobą porozmawiać.
+<self_m>   Chciałbym z tobą porozmawiać.
+<self_na>  Chcę z tobą porozmawiać.
+```
+
+```
+EN: I went to the store, bought bread, and came back home.
+─────────────────────────────────────────────
+<self_f>   Pojechałam do sklepu, kupiłam chleb i wróciłam do domu.
+<self_m>   Poszedłem do sklepu, kupiłem chleb i wróciłem do domu.
+```
+
+And the sentence from the motivation, this time with no rephrasing needed:
+
+```
+EN: I knew you were wrong.
+─────────────────────────────────────────────
+<self_f> <addr_m>   TODO
+<self_f> <addr_p>   TODO
+<self_m> <addr_f>   TODO
+<self_m> <addr_p>   TODO
+```
+
+Compared with the first version, the refined data in v2 roughly tripled the exact-match rate on gendered sentences (e.g. `<self_f>`: 29 → 88 / 596) and
+raised mean BLEU from 0.22 to 0.43. Full tables are in [`research/gender_agreement.md`](research/gender_agreement.md).
+
