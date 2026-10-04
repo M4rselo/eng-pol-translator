@@ -6,63 +6,74 @@ A sequence-to-sequence neural machine translator built from scratch in *PyTorch*
 
 ## Motivation
 
-Most translation tools we use day to day work sentence by sentence, with no memory of who's speaking or who's being spoken to. That's rarely a problem in English, but Polish is a heavily gendered language: verbs, adjectives, and even some nouns change form depending on the speaker's and listener's gender and number.
+Most translation tools we use work sentence by sentence, with no memory of who's speaking or who's being spoken to. That's rarely a problem in English, but Polish is a heavily gendered language: verbs, adjectives, and even some nouns change form depending on the speaker's and listener's gender and number.
 
-Polish is also going through a genuinely interesting linguistic moment right now: feminine forms of nouns (*feminatywy*), such as **członkini** instead of **członek**, are becoming more common - and, depending on who you ask, more accepted. This isn't entirely new territory either: forms like **nauczycielka** ("female teacher") have long been completely standard and uncontroversial. What's changing is how far that pattern extends into roles and titles that used to default to the masculine form.
+Polish is also going through a genuinely interesting linguistic moment right now: feminine forms of nouns (*feminatywy*), such as **członkini** instead of **członek** are becoming more common - and, depending on who you ask, more accepted... This isn't entirely new territory either: forms like **nauczycielka** ("female teacher") have long been completely standard and uncontroversial.
 
-None of this is something a context-free translator can reason about, and the results can range from mildly inaccurate to unintentionally funny.
+None of this is something a context-free translator can reason about, and the results can range from mildly inaccurate to unintentionally funny. </br>
+<br>
 
-##### **Here's a real chain of attempts with ***Google Translate***, trying to coax a single sentence into coming out right:**
+#### As an example, here's a real chain of attempts with&nbsp;<a href="https://translate.google.com"><img src="https://img.shields.io/badge/Google%20Translate-white?logo=googletranslate&logoColor=4285F4" height="32" align="top"></a>&nbsp;, trying to coax a single sentence into coming out right:
 ---
 
-```
-EN: I knew you were wrong.
-PL: Wiedziałem, że się mylisz.
+```diff
+─┬─ Google Translate ───────────────────────────────────
+ │ [EN] >> I knew you were wrong.
++│ [PL] >> Wiedziałem, że się mylisz.
+─┴──────────────────────────────────────────────────────
 ```
 
-Looks right. But what if "you" means more than one person? </br>
+- Looks right. But what if "you" is meant to be plural? </br>
 <br>
 
-```
-EN: I knew you (guys) were wrong.
-PL: Wiedziałem, że się mylicie.
+```diff
+─┬─ Google Translate ───────────────────────────────────
+ │ [EN] >> I knew you (guys) were wrong.
++│ [PL] >> Wiedziałem, że się mylicie.
+─┴──────────────────────────────────────────────────────
 ```
 
-Perfect. Now, what if the speaker is a girl? </br>
+- Perfect. Now, what if the speaker is female? </br>
 <br>
 
+```diff
+─┬─ Google Translate ───────────────────────────────────
+ │ [EN] >> I (girl) knew you (guys) were wrong.
+-│ [PL] >> Wiedziałem (dziewczyny), że się mylicie.
+─┴──────────────────────────────────────────────────────
 ```
-EN: I (girl) knew you (guys) were wrong.
-PL: Wiedziałem (dziewczyny), że się mylicie.
-```
-Hmm, now it treated *"(girls)"* as a part of the sentence, not as a context - "wiedziałem" is still the masculine form. I'm sure dropping *"(guys)"* will do the job!</br>
+
+- Hmm..., now it treated *"(girl)"* as a part of the sentence, not as a context - "wiedziałem" is still the masculine form. I'm sure dropping  *"(guys)"* will do the job!</br>
 <br>
 
-```
-EN: I (girl) knew you were wrong.
-PL: Wiedziałem (dziewczyno), że się mylisz.
+```diff
+─┬─ Google Translate ───────────────────────────────────
+ │ [EN] >> I (girl) knew you were wrong.
+-│ [PL] >> Wiedziałem (dziewczyno), że się mylisz.
+─┴──────────────────────────────────────────────────────
 ```
 
-Nope, same problem, still masculine. One more try, rephrasing more aggressively this time: </br>
+- Nope, same problem, still masculine. One more try, rephrasing more aggressively this time. </br>
 <br>
 
-```
-EN: I (as a girl) knew you (guys) were wrong.
-PL: Jako dziewczyna, wiedziałam, że się mylicie.
+```diff
+─┬─ Google Translate ───────────────────────────────────
+ │ [EN] >> I (as a girl) knew you (guys) were wrong.
++│ [PL] >> Jako dziewczyna, wiedziałam, że się mylicie.
+─┴──────────────────────────────────────────────────────
 ```
 
-There it is - correct speaker gender, correct addressee plurality. But getting there took mangling the English sentence into something nobody would naturally write, purely to smuggle context through a translator that has no way to ask for it directly. </br>
+- There it is - correct speaker gender, correct addressee plurality. But getting there took mangling the English sentence into something nobody would naturally write, purely to smuggle context through a translator that has no way to ask for it directly. </br>
 <br>
 
-Of course, this particular example is trivial, and you could just fix "wiedziałem" to "wiedziałam" by hand in a second. But scale it up to a whole document, a story, a hundred-line chat log with this happening throughout, and manual correction stops being a "quick fix". That's the actual problem this project explores: what if the translator itself took speaker/addressee gender and number as explicit input, instead of guessing?
+Of course, this particular example is trivial, and you could just fix "wiedziałem" to "wiedziałam" by hand in a second. But scale it up to a whole document, a story, a hundred-line chat log with this happening throughout, and manual correction stops being just a "quick fix". That's the actual problem this project explores: ***What if the translator itself took the speaker's gender, and whether the listener is a man, a woman, or a group, as explicit input, instead of guessing?***
 
 ---
-
 ## Approach
 
-*This problem is absolutely solvable more easily by prompting an LLM, or by fine-tuning an existing SOTA translation model. This repo
-deliberately does neither.* The goal wasn't to build the most practical tool, but to understand the problem end to end — from raw subtitle data to a model
-that can be told who's speaking and who's being spoken to.
+*NOTE: This problem is absolutely solvable more easily by prompting an LLM, or by fine-tuning an existing SOTA translation model. This repo
+deliberately does neither. The goal wasn't to build the most practical tool, but to understand the problem end to end - from raw subtitle data to a model
+that can be told who's speaking and who's being spoken to.*
 
 Everything below is implemented from scratch in *PyTorch*, with no pre-trained weights:
 
