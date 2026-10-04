@@ -1,0 +1,152 @@
+{
+  "args": {
+    "data": "/home/hubert/dev/eng-pol-translator/local_data/translator_v2/data_final_opensub.pkl",
+    "versions": [
+      "v1_4",
+      "v1_5"
+    ],
+    "n": 200,
+    "n_general": 300,
+    "beam": 5,
+    "alpha": 0.6,
+    "seed": 0,
+    "out": "/home/hubert/dev/eng-pol-translator/research/results"
+  },
+  "checks": {
+    "v1_4": true,
+    "v1_5": true
+  },
+  "heldout_size": 1132758,
+  "metrics": {
+    "v1_4": {
+      "A": {
+        "n": 400,
+        "f_correct": 323,
+        "m_correct": 354,
+        "flip": 314,
+        "na_dist": {
+          "NONE": 345,
+          "F": 30,
+          "M": 25
+        },
+        "f_dist": {
+          "F": 323,
+          "NONE": 72,
+          "M": 3,
+          "MIXED": 2
+        },
+        "m_dist": {
+          "M": 354,
+          "NONE": 45,
+          "F": 1
+        }
+      },
+      "B": {
+        "n": 200,
+        "identical": 96,
+        "introduced": 25
+      },
+      "C": {
+        "n": 600,
+        "confusion": {
+          "f": {
+            "F": 438,
+            "NONE": 153,
+            "P": 1,
+            "M": 7,
+            "MIXED": 1
+          },
+          "m": {
+            "M": 434,
+            "NONE": 166
+          },
+          "p": {
+            "P": 370,
+            "NONE": 218,
+            "F": 4,
+            "M": 6,
+            "MIXED": 2
+          },
+          "na": {
+            "NONE": 538,
+            "F": 20,
+            "P": 8,
+            "M": 34
+          }
+        }
+      },
+      "D": {
+        "n": 300,
+        "chrF": 41.3,
+        "BLEU": 20.6
+      }
+    },
+    "v1_5": {
+      "A": {
+        "n": 400,
+        "f_correct": 306,
+        "m_correct": 347,
+        "flip": 302,
+        "na_dist": {
+          "NONE": 144,
+          "M": 107,
+          "F": 143,
+          "MIXED": 6
+        },
+        "f_dist": {
+          "F": 306,
+          "NONE": 88,
+          "MIXED": 2,
+          "M": 4
+        },
+        "m_dist": {
+          "M": 347,
+          "NONE": 53
+        }
+      },
+      "B": {
+        "n": 200,
+        "identical": 149,
+        "introduced": 13
+      },
+      "C": {
+        "n": 600,
+        "confusion": {
+          "f": {
+            "F": 372,
+            "NONE": 206,
+            "M": 18,
+            "MIXED": 2,
+            "P": 2
+          },
+          "m": {
+            "M": 377,
+            "NONE": 217,
+            "F": 4,
+            "MIXED": 1,
+            "P": 1
+          },
+          "p": {
+            "P": 362,
+            "NONE": 200,
+            "F": 31,
+            "M": 6,
+            "MIXED": 1
+          },
+          "na": {
+            "NONE": 281,
+            "F": 141,
+            "M": 171,
+            "MIXED": 5,
+            "P": 2
+          }
+        }
+      },
+      "D": {
+        "n": 300,
+        "chrF": 41.4,
+        "BLEU": 21.0
+      }
+    }
+  }
+}
