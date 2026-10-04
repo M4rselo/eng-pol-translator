@@ -164,17 +164,28 @@ every single output is in [`eval_outputs.csv`](research/results/eval_outputs.csv
 
 | What is measured | v1_4 (no augmentation) | v1_5 (augmentation) |
 |---|:---:|:---:|
-| `<self_f>` produces feminine first-person forms | XX% | XX% |
-| `<self_m>` produces masculine first-person forms | XX% | XX% |
-| **both tokens correct on the same sentence** | XX% | XX% |
-| neutral sentence: identical output for f / m / na | XX% | XX% |
-| neutral sentence: gendered form wrongly introduced | XX% | XX% |
-| `<addr_f>` / `<addr_m>` / `<addr_p>` → matching form | XX / XX / XX% | XX / XX / XX% |
-| chrF on general sentences | XX | XX |
+| `<self_f>` produces feminine first-person forms | 80.8% (77–84) | 76.5% (72–80) |
+| `<self_m>` produces masculine first-person forms | 88.5% (85–91) | 86.8% (83–90) |
+| **both tokens correct on the same sentence** | 78.5% (74–82) | 75.5% (71–79) |
+| `<self_na>` on a sentence that needs a gender → no gendered form | 86.2% (83–89) | 36.0% (31–41) |
+| **neutral sentence: identical output for f / m / na** | 48.0% (41–55) | **74.5% (68–80)** |
+| neutral sentence: gendered form wrongly introduced | 12.5% (9–18) | 6.5% (4–11) |
+| `<addr_f>` / `<addr_m>` / `<addr_p>` → matching form | 73.0 / 72.3 / 61.7% | 62.0 / 62.8 / 60.3% |
+| chrF / BLEU on general sentences | 41.3 / 20.6 | 41.4 / 21.0 |
 
 </div>
 
-<!-- 2-3 sentences: what the numbers show, e.g. effect of the augmentation on neutral stability, where the model still fails. -->
+**What this shows.** The augmentation in v1_5 did what it was designed for: on first-person sentences that have no gendered form in Polish,
+the output stays the same regardless of the speaker token in 74.5% of cases (48.0% for v1_4), and wrongly introduced gendered forms drop
+from 12.5% to 6.5%. General translation quality is unchanged.
+
+It came at a cost. Explicit control got weaker - clearly for the addressee (73/72% → 62/63%), within noise for the speaker - and the `na`
+tokens changed meaning: given `<self_na>` on a sentence that needs a gender, v1_4 avoids gendered forms in 86% of cases, while v1_5 picks one
+in ~63%, slightly more often feminine. My interpretation is that pairing the f/m tokens with neutral targets also taught the model that the
+tokens can sometimes be ignored. Tuning how often the augmentation fires is the obvious next experiment.
+
+In roughly a third of cases the output contains no form the detector recognises - this can be a valid paraphrase (e.g. present tense)
+or a mistake; [`eval_outputs.csv`](research/results/eval_outputs.csv) has every output for inspection.
 
 > [!NOTE]
 > The earlier per-epoch BLEU in [`research/epoch_selection.ipynb`](research/epoch_selection.ipynb) uses a simplified BLEU (from *Dive into Deep
@@ -282,6 +293,7 @@ training `DataLoader` did not reshuffle between epochs.
 
 ### What I would do next
 
+- Tune the augmentation rate (e.g. re-draw the token for only part of the `NA` rows) to keep the neutral-sentence stability of v1_5 without losing the explicit control of v1_4.
 - Extend the counterfactual augmentation from profession nouns to verbs (*-łem ↔ -łam*) to balance the 68k / 161k speaker split.
 - Tie the decoder embedding with the output layer (~27M fewer parameters) and try smaller BPE vocabularies.
 - Add label smoothing and learning-rate warmup, deduplicate the corpus, store tokenizers as JSON instead of pickles.
