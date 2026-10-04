@@ -13,7 +13,10 @@ import loader
 app = Flask(__name__, template_folder=str(WEBAPP_DIR / "templates"),
             static_folder=str(WEBAPP_DIR / "static"))
 
-VERSIONS = ["v1_2", "v1_3", "v1_4", "v1_5"]
+VERSIONS = [v for v, cfg in loader.VERSION_CONFIG.items()
+            if (loader.CHECKPOINT_DIR / cfg["checkpoint"]).exists()]
+if not VERSIONS:
+    sys.exit("No checkpoints found in appdata/checkpoints - see README, section 'Download the model'.")
 
 
 def _clamp_float(val, default, lo, hi):
@@ -33,7 +36,7 @@ def _clamp_int(val, default, lo, hi):
 
 
 def _parse_common(data):
-    version = str(data.get("version") or "v1_5")
+    version = str(data.get("version") or VERSIONS[-1])
     text = str(data.get("text") or "")
     self_ref = data.get("self_ref") or "na"
     addr_ref = data.get("addr_ref") or "na"
@@ -63,7 +66,7 @@ def api_tokenize():
     encoder/decoder forward pass, safe to call much more eagerly than
     /api/translate."""
     data = request.get_json(force=True, silent=True) or {}
-    version = str(data.get("version") or "v1_5")
+    version = str(data.get("version") or VERSIONS[-1])
     text = str(data.get("text") or "")
     try:
         version = loader.normalize_version(version)
@@ -129,4 +132,4 @@ def api_compare():
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port, debug=False, threaded=True)
+    app.run(host=os.environ.get("HOST", "127.0.0.1"), port=port, debug=False, threaded=True)

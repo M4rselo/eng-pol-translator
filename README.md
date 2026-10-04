@@ -1,6 +1,6 @@
 # Gender Context English-Polish Translator
 
-A sequence-to-sequence neural machine translator built from scratch in *PyTorch*, without using any pre-trained models or high-level NLP libraries - with explicit control over the speaker's and addressee's gender and number in the Polish output.
+A Transformer English → Polish translator trained from zero in *PyTorch* (no pre-trained weights, no external tokenizers or NLP libraries) - with explicit control over the speaker's and addressee's gender and number in the Polish output.
 
 ---
 
@@ -112,7 +112,8 @@ listener, with additional sentence-structure checks to filter out false matches.
 
 The first-person extraction alone produced **~68k feminine** and **~161k masculine** sentences. The imbalance was even stronger for profession nouns
 (*jestem lekarzem*, *jestem nauczycielem*), so a large set of them was converted to feminine forms (*lekarzem → lekarką*, *prawnikiem → prawniczką*),
-teaching the model the feminine forms the raw subtitles barely contain. <br>
+teaching the model the feminine forms the raw subtitles barely contain - while the original masculine sentence is kept too, so the same English sentence appears with both targets (a form of
+*counterfactual data augmentation*, cf. Zmigrod et al., 2019). <br>
 
 > [!TIP]
   > The extraction process, including the exact patterns and filtering rules, can be found in
@@ -125,7 +126,12 @@ teaching the model the feminine forms the raw subtitles barely contain. <br>
 Most sentences don't express gender at all, e.g., *Lubię chodzić do kina.* (*I like going to the cinema.*). Training only on gendered examples made the model overuse gendered forms everywhere
 - an early version translated *"I want to talk to you."* with `<self_f>` as *"Chciałam z tobą porozmawiać"* (past tense, just to make it feminine).
 
-The fix is a **reference-token augmentation** applied on the fly during training *(translator-v1_5)*. Whenever a sentence has no gender label for the speaker or the listener, its context token is replaced with one drawn at random each time the sample is loaded - `<self_f>`, `<self_m>` or `<self_na>` for the speaker, and `<addr_f>`, `<addr_m>` or `<addr_na>` for the listener. Across epochs, the same sentence is seen under different tokens, but always with the same Polish target.
+The fix is a **reference-token augmentation** applied on the fly during training *(translator-v1_5)*. Every corpus row gets one of three labels per role:
+a detected gender, `NA` (a first- or second-person sentence whose Polish form carries no gender, ~313k speaker / ~263k listener rows in the
+training sample) or `NA_OTHER` (no first/second person at all). For `NA` rows the context token is re-drawn every time the sample is loaded -
+`<self_f>`, `<self_m>` or `<self_na>` for the speaker and `<addr_f>`, `<addr_m>` or `<addr_na>` for the listener - while the Polish target stays
+the same. The model therefore sees the same neutral sentence under different tokens and learns that the token should only matter when
+Polish actually has a choice to make. `NA_OTHER` rows always keep `<self_na>` / `<addr_na>`, and `<addr_p>` is never drawn by the augmentation.
 
 ---
 
@@ -143,6 +149,37 @@ The full story of how the gender handling evolved, including evaluation and fail
 [`research/gender_agreement.md`](research/gender_agreement.md).
 
 <br>
+
+
+---
+## Results
+
+Evaluated with [`research/evaluate_gender.py`](research/evaluate_gender.py) - inference only, no retraining. The script reproduces the exact
+training sample of each model, builds a held-out set from sentence pairs that were **never sampled for training and are not duplicates of any
+training pair**, and checks the output with simple morphological detectors (*-łam/-łem*, *-łabym/-łbym*, *-łaś/-łeś*, *-liście/-łyście*).
+Numbers in brackets are 95% confidence intervals. Full report with all tables: [`research/results/eval_summary.md`](research/results/eval_summary.md);
+every single output is in [`eval_outputs.csv`](research/results/eval_outputs.csv).
+
+<div align="center">
+
+| What is measured | v1_4 (no augmentation) | v1_5 (augmentation) |
+|---|:---:|:---:|
+| `<self_f>` produces feminine first-person forms | XX% | XX% |
+| `<self_m>` produces masculine first-person forms | XX% | XX% |
+| **both tokens correct on the same sentence** | XX% | XX% |
+| neutral sentence: identical output for f / m / na | XX% | XX% |
+| neutral sentence: gendered form wrongly introduced | XX% | XX% |
+| `<addr_f>` / `<addr_m>` / `<addr_p>` → matching form | XX / XX / XX% | XX / XX / XX% |
+| chrF on general sentences | XX | XX |
+
+</div>
+
+<!-- 2-3 sentences: what the numbers show, e.g. effect of the augmentation on neutral stability, where the model still fails. -->
+
+> [!NOTE]
+> The earlier per-epoch BLEU in [`research/epoch_selection.ipynb`](research/epoch_selection.ipynb) uses a simplified BLEU (from *Dive into Deep
+> Learning*) computed on BPE token ids, on samples that partly overlap the training data - it was only used as a relative signal to pick
+> a checkpoint and is not comparable to standard BLEU. The table above replaces it.
 
 ---
 ## Try it
@@ -162,25 +199,32 @@ inspect what the model is actually doing - per-word confidence, attention maps a
 git clone https://github.com/M4rselo/eng-pol-translator.git
 cd eng-pol-translator
 pip install -r requirements.txt
+pip install -U huggingface_hub
 ```
 
 ### 2. Download the model
 
-The trained weights are too large for the repo and are hosted on [Hugging Face](TODO-link). Download them and place them in `appdata/`:
+The trained weights and tokenizers are too large for the repo and are hosted on
+[Hugging Face](https://huggingface.co/M4rselo/eng-pol-translator). Download them straight into `appdata/`:
+
+```bash
+hf download M4rselo/eng-pol-translator --local-dir appdata
+```
+
+Expected layout:
 
 ```
 appdata/
 ├── checkpoints/
-│   ├── ...
-|   ├── translator_v1_4-13.pt
-|   └── translator_v1_5-13.pt
+│   ├── translator_v1_4-13.pt
+│   └── translator_v1_5-13.pt
 └── model_reference/
-└── translator_v1_5/
+    ├── translator_v1_4/   (tokenizer_*.pkl, encoder_*.pkl)
+    └── translator_v1_5/
 ```
 
-```bash
-TODO: download command
-```
+> [!WARNING]
+> The tokenizers are stored as Python pickles - only load them from this repository's Hugging Face page.
 
 ### 3. Run
 
@@ -188,19 +232,23 @@ TODO: download command
 python webapp/app.py
 ```
 
-The app will be available at [http://localhost:5000](http://localhost:5000). Inference runs on the CPU - no GPU required.
+The app will be available at [http://localhost:5000](http://localhost:5000). Inference runs on the CPU - no GPU required. Only model versions whose
+checkpoint is present in `appdata/checkpoints/` are shown.
 
 ---
 ## Under the hood
 
-Everything below is implemented from scratch - no pre-trained weights, no external tokenizers.
+No pre-trained weights and no external tokenizers. The Transformer building blocks (attention, encoder/decoder blocks, positional encoding)
+are adapted from the textbook [*Dive into Deep Learning*](https://d2l.ai); on top of that the project adds its own BPE tokenizer, data
+pipeline, reference-token conditioning (prefix tokens excluded from the loss), a positional-encoding offset for cached decoding, beam search
+with a KV cache, mixed-precision training and the web demo.
 
 <div align="center">
 
 | Component | Details |
 |---|---|
-| **Tokenizer** | Byte Pair Encoding, trained separately for English (36k) and Polish (54k) |
-| **Model** | Encoder-decoder Transformer - 4 + 4 blocks, 8 heads, `d_model` 512, FFN 1024, dropout 0.3 |
+| **Tokenizer** | Own Byte Pair Encoding (incremental pair counts + lazy-deletion heap), trained separately for English (36k) and Polish (54k) |
+| **Model** | Encoder-decoder Transformer - 4 + 4 blocks, 8 heads, `d_model` 512, FFN 1024, dropout 0.3 (~95M parameters) |
 | **Training** | ~1.35M sentence pairs (+150k validation), Adam (lr 1e-4), batch 64, mixed precision, gradient clipping |
 | **Inference** | Beam search (k = 5) with length penalty (α = 0.6) and decoder cache |
 
@@ -208,8 +256,6 @@ Everything below is implemented from scratch - no pre-trained weights, no extern
 
 Training notebooks for every model version are in [`research/training_notebooks/`](research/training_notebooks/), and the reasoning behind the final
 checkpoint choice in [`research/epoch_selection.ipynb`](research/epoch_selection.ipynb).
-
----
 
 ## Limitations
 
@@ -230,6 +276,16 @@ the listener token instead of staying neutral:
 form doesn't always carry through the whole sentence.
 - **Subtitle-style Polish.** The training data is mostly casual dialogue, so formal or technical text often comes out simplified or awkward.
 - **Short sentences only.** The model was trained on sequences of up to 27 tokens; longer inputs are truncated.
+- **Lowercase only.** Text is lowercased before tokenization, so the output is lowercase apart from the first letter (*w paryżu*, *mary*).
+- **Known training-pipeline issues** (fixed in code, the published checkpoints predate the fixes): the training data was not deduplicated and the
+training `DataLoader` did not reshuffle between epochs.
+
+### What I would do next
+
+- Extend the counterfactual augmentation from profession nouns to verbs (*-łem ↔ -łam*) to balance the 68k / 161k speaker split.
+- Tie the decoder embedding with the output layer (~27M fewer parameters) and try smaller BPE vocabularies.
+- Add label smoothing and learning-rate warmup, deduplicate the corpus, store tokenizers as JSON instead of pickles.
+
 
 ---
 
@@ -241,6 +297,11 @@ Evaluation (LREC 2016)
 
 A. Vaswani et al., 2017, [*Attention Is All You Need.*](https://arxiv.org/abs/1706.03762) In Advances in Neural Information Processing Systems 30 (NeurIPS
 2017)
+
+A. Zhang, Z. C. Lipton, M. Li and A. J. Smola, 2023, [*Dive into Deep Learning.*](https://d2l.ai) Cambridge University Press
+
+R. Zmigrod, S. J. Mielke, H. Wallach and R. Cotterell, 2019, *Counterfactual Data Augmentation for Mitigating Gender Stereotypes in Languages
+with Rich Morphology.* In Proceedings of the 57th Annual Meeting of the ACL (ACL 2019)
 
 ---
 

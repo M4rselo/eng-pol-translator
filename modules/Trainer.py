@@ -23,7 +23,7 @@ class TrainerModule():
         self.plotter = PlotterModule(title)
 
     def prepare_data(self, train_data, val_data):
-        self.train_dataloader = data_loader(train_data, self.batch_size, num_workers=self.num_workers)
+        self.train_dataloader = data_loader(train_data, self.batch_size, num_workers=self.num_workers, shuffle=True)
         self.val_dataloader = data_loader(val_data, self.batch_size, num_workers=self.num_workers)
 
     def init_run(self):

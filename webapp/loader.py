@@ -1,35 +1,15 @@
 """
 webapp/loader.py
-=================
-Model loading + inference for the Gender-Context Translator web app.
+================
+Model loading and inference for the web demo.
 
-Design notes (why this file looks the way it does):
-
-- Checkpoints in ./appdata/checkpoints contain only {'epoch', 'model_state'}
-  (no optimizer/scaler state) -- so we build the model ourselves and load
-  weights with torch.load + load_state_dict. We never use
-  modules.Trainer.TrainerModule.load_checkpoint (that path expects a full
-  training checkpoint and a CUDA GradScaler, neither of which applies here).
-
-- Beam search is NOT reimplemented here. `modules.Predict.PredictionModule`
-  / `PredictionModuleRef` are used directly and unmodified: their `__init__`
-  only does cheap dict/attribute setup (no I/O), so we build a fresh,
-  disposable instance per request with whatever `alpha` was requested,
-  instead of mutating a shared cached object. `alpha` therefore never
-  touches any shared state, and there is exactly one beam-search
-  implementation in the whole project (yours).
-
-- Confidence is always computed the same way (geometric mean of the actual
-  per-token probabilities of the sequence that was chosen), regardless of
-  `alpha`. `alpha` only ever influences *which* sequence beam search picks,
-  never how confident we report being in it afterwards.
-
-- Source-sentence encoding reuses `BPEEncoder.encode_word` directly, unwrapped
-  -- it now falls back to `<unk>` itself for characters outside the training
-  vocabulary (fixed in modules/BPE_tokenizer.py, not patched around here).
-  `_safe_encode` only adds the explicit truncation to the model's max
-  sequence length (a real, previously observed crash on ordinary,
-  non-adversarial input -- the original encoder never truncates).
+- Checkpoints in appdata/checkpoints hold only {'epoch', 'model_state'}, so the model is
+  built here and the weights are loaded with load_state_dict (not Trainer.load_checkpoint).
+- Beam search comes from modules.Predict; a lightweight predicter object is created per
+  request so that the requested `alpha` never mutates shared state.
+- Reported confidence is the geometric mean of per-token probabilities of the chosen
+  sequence, computed in a separate teacher-forced pass, so it does not depend on `alpha`.
+- Source input is truncated to the model's maximum sequence length before encoding.
 """
 import math
 import pickle
@@ -285,9 +265,9 @@ def translate(version: str, text: str, self_ref: str = "na", addr_ref: str = "na
 
     eng_ids, src_tokens = _safe_encode(bundle, text)
     init_seq = _build_init_seq(predicter, self_ref, addr_ref)
-    X_enc, valid_len = predicter.get_enc_input(eng_ids)  # reused from Predict.py, unmodified
+    X_enc, valid_len = predicter.get_enc_input(eng_ids)
 
-    best_seq = predicter.predict_ids(X_enc, valid_len, init_seq, num_k)  # reused, unmodified beam search
+    best_seq = predicter.predict_ids(X_enc, valid_len, init_seq, num_k)
 
     raw_tgt = [predicter.rev_pol.get(t, "<unk>") for t in best_seq]
     translation = predicter.out_handler(raw_tgt[:-1] if raw_tgt and raw_tgt[-1] == "<eos>" else raw_tgt)

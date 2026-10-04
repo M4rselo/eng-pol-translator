@@ -204,7 +204,7 @@ Na: 'Poszedłem do sklepu, kupić chleb i wróciła do domu.'
 
 <br/>
 
-## Solution v3 — Extending to the Addressee (Second Person) [In Progress]
+## Solution v3 — Extending to the Addressee (Second Person)
 
 v1 and v2 only condition on the *speaker's* gender. But Polish grammar marks the *addressee* too — second-person verb forms and pronouns differ by the listener's gender and by formality (*pan/pani*, plural *wy*). Ignoring this leaves half of the agreement problem unsolved.
 
@@ -221,7 +221,13 @@ Rather than replacing the speaker token, the addressee token is prefixed alongsi
 
 ### Status
 
-Not yet formally evaluated — no held-out exact-match or BLEU numbers like v1/v2 yet. Manual testing with a local playground script has surfaced two recurring issues worth tracking:
+The combined model was first trained without augmentation (**v1_4**), then with the reference-token augmentation described in the main
+README (**v1_5**): rows classified as first/second person but without a gendered Polish form get a randomly drawn context token every
+time they are loaded, while the target stays the same.
+
+Both models are evaluated on a deduplicated held-out set that never overlaps the training sample - see the *Results* section of the
+main README and the full report in [`results/eval_summary.md`](results/eval_summary.md). Manual testing has also surfaced two recurring
+issues worth tracking:
 
 **`<self_na>` isn't truly neutral — it mirrors `addr_ref`'s gender instead.** The speaker's gender should stay unmarked when `self_ref='na'`, but it consistently picks up whatever gender `addr_ref` was set to:
 

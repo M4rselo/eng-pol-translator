@@ -116,9 +116,9 @@ class EngPolAugDataset(Dataset):
 
     def _aug_ref(self, pol, idx):
         if self.self_na_mask[idx]:
-            pol[0] = self.self_opts[int(random.random() * 3)]
+            pol[0] = random.choice(self.self_opts)
         if self.addr_na_mask[idx]:
-            pol[1] = self.addr_opts[int(random.random() * 3)]
+            pol[1] = random.choice(self.addr_opts)
         return pol
 
     def __getitem__(self, idx):
@@ -148,10 +148,11 @@ def collate_fn(batch):
     eng_val_lens = (eng_padded != 0).sum(dim=-1, keepdim=True)
     return eng_padded, pol_padded, eng_val_lens
 
-def data_loader(data, batch_size, num_workers=0, persistent_workers=False):
+def data_loader(data, batch_size, num_workers=0, persistent_workers=False, shuffle=False):
     return DataLoader(
         data,
         batch_size=batch_size,
+        shuffle=shuffle,
         collate_fn=collate_fn,
         num_workers=num_workers,
         persistent_workers=persistent_workers if num_workers > 0 else False,
