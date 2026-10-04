@@ -75,13 +75,15 @@ Of course, this particular example is trivial, and you could just fix "wiedział
 deliberately does neither. The goal wasn't to build the most practical tool, but to understand the problem end to end - from raw subtitle data to a model
 that can be told who's speaking and who's being spoken to.*
 
+<br>
+
 ### 1. Context as part of the target sequence
 ---
 The model is a standard encoder-decoder Transformer. The English sentence goes into the encoder unchanged - the context is injected on the **decoder
 side**, as two reference tokens placed before `<bos>`:
 
 ```
-<self_f> <addr_p> <bos> Wiedziałam, że się mylicie. <eos>
+<self_f> <addr_p> <bos> Wiedziałam, że mnie lubicie. <eos>
 ```
 <br>
   
@@ -98,7 +100,9 @@ There are seven reference tokens in total - three for the speaker and four for t
 
 <br>
 During inference, these two tokens are fed in as a fixed prefix and the model generates the rest of the sentence conditioned on them. Since the context
-lives outside the English input, it can be changed without touching a single word of the source.
+lives outside the English input, it can be changed without touching a single word of the source.<br>
+
+<br>
 
 ### 2. Labelling the data by grammar
 ---
@@ -114,6 +118,7 @@ teaching the model the feminine forms the raw subtitles barely contain. <br>
   > The extraction process, including the exact patterns and filtering rules, can be found in
   [`research/Gender_Pronouns_1st_Person.ipynb`](research/Gender_Pronouns_1st_Person.ipynb) (speaker) and
   [`research/Gender_Pronouns_2nd_Person.ipynb`](research/Gender_Pronouns_2nd_Person.ipynb) (listener).
+<br>
 
 ### 3. Knowing when not to change anything
 ---
@@ -143,7 +148,7 @@ The full story of how the gender handling evolved, including evaluation and fail
 ## Try it
 
 <div align="center">
-  <img src="TODO/path/to/screenshot.png" alt="Web demo" width="800">
+  <img src="assets/webapp_screenshot.png" alt="Web demo" width="800">
 </div>
 
 <br>
@@ -154,7 +159,7 @@ inspect what the model is actually doing - per-word confidence, attention maps a
 ### 1. Install
 
 ```bash
-git clone https://github.com/TODO/eng-pol-translator.git
+git clone https://github.com/M4rselo/eng-pol-translator.git
 cd eng-pol-translator
 pip install -r requirements.txt
 ```
@@ -166,7 +171,9 @@ The trained weights are too large for the repo and are hosted on [Hugging Face](
 ```
 appdata/
 ├── checkpoints/
-│   └── translator_v1_5-13.pt
+│   ├── ...
+|   ├── translator_v1_4-13.pt
+|   └── translator_v1_5-13.pt
 └── model_reference/
 └── translator_v1_5/
 ```
@@ -184,4 +191,59 @@ python webapp/app.py
 The app will be available at [http://localhost:5000](http://localhost:5000). Inference runs on the CPU - no GPU required.
 
 ---
+## Under the hood
 
+Everything below is implemented from scratch - no pre-trained weights, no external tokenizers.
+
+<div align="center">
+
+| Component | Details |
+|---|---|
+| **Tokenizer** | Byte Pair Encoding, trained separately for English (36k) and Polish (54k) |
+| **Model** | Encoder-decoder Transformer - 4 + 4 blocks, 8 heads, `d_model` 512, FFN 1024, dropout 0.3 |
+| **Training** | ~1.35M sentence pairs (+150k validation), Adam (lr 1e-4), batch 64, mixed precision, gradient clipping |
+| **Inference** | Beam search (k = 5) with length penalty (α = 0.6) and decoder cache |
+
+</div>
+
+Training notebooks for every model version are in [`research/training_notebooks/`](research/training_notebooks/), and the reasoning behind the final
+checkpoint choice in [`research/epoch_selection.ipynb`](research/epoch_selection.ipynb).
+
+---
+
+## Limitations
+
+This is a from-scratch model trained on movie subtitles, and it shows. Some known issues:
+
+- **`<self_na>` isn't fully neutral.** When the speaker's gender is unspecified, the model tends to lean towards feminine forms, or picks up a gender from
+the listener token instead of staying neutral:
+
+```diff
+─┬─ Translator-v1_5 ────────────────────────────────────
+ │ [EN]  >> I am a teacher.
+ │ [TOK] >> speaker: <self_na> · listener: <addr_na>
+-│ [PL]  >> Jestem nauczycielką.
+─┴──────────────────────────────────────────────────────
+```
+
+- **Plural addressees are fragile.** Sentences addressed to a group only come out reliably when `<addr_p>` is set explicitly - and even then, the plural
+form doesn't always carry through the whole sentence.
+- **Subtitle-style Polish.** The training data is mostly casual dialogue, so formal or technical text often comes out simplified or awkward.
+- **Short sentences only.** The model was trained on sequences of up to 27 tokens; longer inputs are truncated.
+
+---
+
+## References
+
+P. Lison and J. Tiedemann, 2016, [*OpenSubtitles2016: Extracting Large Parallel Corpora from Movie and TV
+Subtitles.*](http://stp.lingfil.uu.se/~joerg/paper/opensubs2016.pdf) In Proceedings of the 10th International Conference on Language Resources and
+Evaluation (LREC 2016)
+
+A. Vaswani et al., 2017, [*Attention Is All You Need.*](https://arxiv.org/abs/1706.03762) In Advances in Neural Information Processing Systems 30 (NeurIPS
+2017)
+
+---
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).
