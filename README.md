@@ -137,38 +137,51 @@ The same sentence from the Google Translate example, this time without rewriting
 The full story of how the gender handling evolved, including evaluation and failure cases, is documented in
 [`research/gender_agreement.md`](research/gender_agreement.md).
 
+<br>
+
 ---
+## Try it
 
-## Results
+<div align="center">
+  <img src="TODO/path/to/screenshot.png" alt="Web demo" width="800">
+</div>
 
-The same English sentence, translated under different speaker contexts:
+<br>
 
-```
-EN: I would like to talk to you.
-─────────────────────────────────────────────
-<self_f>   Chciałabym z tobą porozmawiać.
-<self_m>   Chciałbym z tobą porozmawiać.
-<self_na>  Chcę z tobą porozmawiać.
-```
+The repo comes with a small web app for playing with the model: pick the speaker and listener context, compare all token combinations side by side, and
+inspect what the model is actually doing - per-word confidence, attention maps and the BPE tokenization of the input.
 
-```
-EN: I went to the store, bought bread, and came back home.
-─────────────────────────────────────────────
-<self_f>   Pojechałam do sklepu, kupiłam chleb i wróciłam do domu.
-<self_m>   Poszedłem do sklepu, kupiłem chleb i wróciłem do domu.
-```
+### 1. Install
 
-And the sentence from the motivation, this time with no rephrasing needed:
-
-```
-EN: I knew you were wrong.
-─────────────────────────────────────────────
-<self_f> <addr_m>   TODO
-<self_f> <addr_p>   TODO
-<self_m> <addr_f>   TODO
-<self_m> <addr_p>   TODO
+```bash
+git clone https://github.com/TODO/eng-pol-translator.git
+cd eng-pol-translator
+pip install -r requirements.txt
 ```
 
-Compared with the first version, the refined data in v2 roughly tripled the exact-match rate on gendered sentences (e.g. `<self_f>`: 29 → 88 / 596) and
-raised mean BLEU from 0.22 to 0.43. Full tables are in [`research/gender_agreement.md`](research/gender_agreement.md).
+### 2. Download the model
+
+The trained weights are too large for the repo and are hosted on [Hugging Face](TODO-link). Download them and place them in `appdata/`:
+
+```
+appdata/
+├── checkpoints/
+│   └── translator_v1_5-13.pt
+└── model_reference/
+└── translator_v1_5/
+```
+
+```bash
+TODO: download command
+```
+
+### 3. Run
+
+```bash
+python webapp/app.py
+```
+
+The app will be available at [http://localhost:5000](http://localhost:5000). Inference runs on the CPU - no GPU required.
+
+---
 
