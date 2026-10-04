@@ -18,8 +18,8 @@ None of this is something a context-free translator can reason about, and the re
 
 ```diff
 ─┬─ Google Translate ───────────────────────────────────
- │ [EN] >> I knew you were wrong.
-+│ [PL] >> Wiedziałem, że się mylisz.
+ │ [EN] >> I knew you liked me.
++│ [PL] >> Wiedziałem, że mnie lubisz.
 ─┴──────────────────────────────────────────────────────
 ```
 
@@ -28,8 +28,8 @@ None of this is something a context-free translator can reason about, and the re
 
 ```diff
 ─┬─ Google Translate ───────────────────────────────────
- │ [EN] >> I knew you (guys) were wrong.
-+│ [PL] >> Wiedziałem, że się mylicie.
+ │ [EN] >> I knew you (guys) liked me.
++│ [PL] >> Wiedziałem, że mnie lubicie.
 ─┴──────────────────────────────────────────────────────
 ```
 
@@ -38,8 +38,8 @@ None of this is something a context-free translator can reason about, and the re
 
 ```diff
 ─┬─ Google Translate ───────────────────────────────────
- │ [EN] >> I (girl) knew you (guys) were wrong.
--│ [PL] >> Wiedziałem (dziewczyny), że się mylicie.
+ │ [EN] >> I (girl) knew you (guys) liked me.
+-│ [PL] >> Wiedziałem, że mi się podobam (dziewczyno).
 ─┴──────────────────────────────────────────────────────
 ```
 
@@ -48,8 +48,8 @@ None of this is something a context-free translator can reason about, and the re
 
 ```diff
 ─┬─ Google Translate ───────────────────────────────────
- │ [EN] >> I (girl) knew you were wrong.
--│ [PL] >> Wiedziałem (dziewczyno), że się mylisz.
+ │ [EN] >> I (girl) knew you liked me.
+-│ [PL] >> Wiedziałem, że ci się podobam.
 ─┴──────────────────────────────────────────────────────
 ```
 
@@ -58,8 +58,8 @@ None of this is something a context-free translator can reason about, and the re
 
 ```diff
 ─┬─ Google Translate ───────────────────────────────────
- │ [EN] >> I (as a girl) knew you (guys) were wrong.
-+│ [PL] >> Jako dziewczyna, wiedziałam, że się mylicie.
+ │ [EN] >> I (as a girl) knew you guys liked me.
++│ [PL] >> Jako dziewczyna wiedziałam, że mnie lubicie.
 ─┴──────────────────────────────────────────────────────
 ```
 
@@ -75,19 +75,66 @@ Of course, this particular example is trivial, and you could just fix "wiedział
 deliberately does neither. The goal wasn't to build the most practical tool, but to understand the problem end to end - from raw subtitle data to a model
 that can be told who's speaking and who's being spoken to.*
 
-Everything below is implemented from scratch in *PyTorch*, with no pre-trained weights:
+### 1. Context as part of the target sequence
+---
+The model is a standard encoder-decoder Transformer. The English sentence goes into the encoder unchanged - the context is injected on the **decoder
+side**, as two reference tokens placed before `<bos>`:
 
-- **Data** — English-Polish pairs from *OpenSubtitles*, plus first- and second-person sentences extracted and labelled by grammatical gender using Polish
-verb endings (*-łam / -łem*, *-łaś / -łeś*, *pan / pani*, *wy*-forms).
-- **Tokenizer** — a custom BPE tokenizer, trained separately for English and Polish.
-- **Model** — an encoder-decoder Transformer (multi-head attention, positional encoding, residual connections, layer norm).
-- **Context control** — two control tokens are prefixed to the decoder input, one for the speaker and one for the addressee:
-  `<self_f | self_m | self_na>` `<addr_f | addr_m | addr_p | addr_na>` `<bos> ...`
-  During training, sentences without a gender label get a random context token, so the model learns to change the output *only when Polish actually has a
-grammatical choice to make*.
-- **Inference** — a custom beam search with a length penalty and a decoder cache.
+```
+<self_f> <addr_p> <bos> Wiedziałam, że się mylicie. <eos>
+```
+<br>
+  
+There are seven reference tokens in total - three for the speaker and four for the listener: <br>
+  
+<div align="center">
+    
+| Token | Meaning |
+|---|---|
+| `<self_f>` · `<self_m>` · `<self_na>` | female · male · unspecified speaker |
+| `<addr_f>` · `<addr_m>` · `<addr_p>` · `<addr_na>` | female · male · plural · unspecified listener |
+   
+</div>
 
-The full story of how the gender handling evolved (v1 → v3), including evaluation and failure cases, is documented in
+<br>
+During inference, these two tokens are fed in as a fixed prefix and the model generates the rest of the sentence conditioned on them. Since the context
+lives outside the English input, it can be changed without touching a single word of the source.
+
+### 2. Labelling the data by grammar
+---
+No gender-annotated English-Polish corpus exists, so the labels were derived from the Polish side of *OpenSubtitles*. First and second-person sentences
+were classified by their grammatical endings - *-łam / -łem*, *-łabym / -łbym* for the speaker, *-łaś / -łeś*, *pan / pani* and *wy*-forms for the
+listener, with additional sentence-structure checks to filter out false matches.
+
+The first-person extraction alone produced **~68k feminine** and **~161k masculine** sentences. The imbalance was even stronger for profession nouns
+(*jestem lekarzem*, *jestem nauczycielem*), so a large set of them was converted to feminine forms (*lekarzem → lekarką*, *prawnikiem → prawniczką*),
+teaching the model the feminine forms the raw subtitles barely contain. <br>
+
+> [!TIP]
+  > The extraction process, including the exact patterns and filtering rules, can be found in
+  [`research/Gender_Pronouns_1st_Person.ipynb`](research/Gender_Pronouns_1st_Person.ipynb) (speaker) and
+  [`research/Gender_Pronouns_2nd_Person.ipynb`](research/Gender_Pronouns_2nd_Person.ipynb) (listener).
+
+### 3. Knowing when not to change anything
+---
+Most sentences don't express gender at all, e.g., *Lubię chodzić do kina.* (*I like going to the cinema.*). Training only on gendered examples made the model overuse gendered forms everywhere
+- an early version translated *"I want to talk to you."* with `<self_f>` as *"Chciałam z tobą porozmawiać"* (past tense, just to make it feminine).
+
+The fix is a **reference-token augmentation** applied on the fly during training *(translator-v1_5)*. Whenever a sentence has no gender label for the speaker or the listener, its context token is replaced with one drawn at random each time the sample is loaded - `<self_f>`, `<self_m>` or `<self_na>` for the speaker, and `<addr_f>`, `<addr_m>` or `<addr_na>` for the listener. Across epochs, the same sentence is seen under different tokens, but always with the same Polish target.
+
+---
+
+The same sentence from the Google Translate example, this time without rewriting a single word:
+
+```diff
+─┬─ Translator-v1_5 ────────────────────────────────────
+ │ [EN]  >> I knew you liked me.
+ │ [TOK] >> speaker: <self_f> · listener: <addr_p>
++│ [PL]  >> Wiedziałam, że mnie lubicie.
+─┴──────────────────────────────────────────────────────
+```
+
+The full story of how the gender handling evolved, including evaluation and failure cases, is documented in
 [`research/gender_agreement.md`](research/gender_agreement.md).
 
 ---
