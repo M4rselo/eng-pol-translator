@@ -207,8 +207,8 @@ inspect what the model is actually doing - per-word confidence, attention maps a
 ### 1. Install
 
 ```bash
-git clone https://github.com/M4rselo/eng-pol-translator.git
-cd eng-pol-translator
+git clone https://github.com/M4rselo/gender-aware-en-pl.git
+cd gender-aware-en-pl
 pip install -r requirements.txt
 pip install -U huggingface_hub
 ```
@@ -216,10 +216,10 @@ pip install -U huggingface_hub
 ### 2. Download the model
 
 The trained weights and tokenizers are too large for the repo and are hosted on
-[Hugging Face](https://huggingface.co/M4rselo/eng-pol-translator). Download them straight into `appdata/`:
+[Hugging Face](https://huggingface.co/M4rselo/gender-aware-en-pl). Download them straight into `appdata/`:
 
 ```bash
-hf download M4rselo/eng-pol-translator --local-dir appdata
+hf download M4rselo/gender-aware-en-pl --local-dir appdata
 ```
 
 Expected layout:
