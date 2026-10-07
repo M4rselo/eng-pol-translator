@@ -6,7 +6,7 @@ In Polish, verbs, adjectives, and participles need to match the subject's gender
 
 #### Three recurring patterns can be observed:
 
-**1. Gender agreement within a single sentence** — without a clear he/she marker, the model does not connect gender-specific words across the sentence.
+**1. Gender agreement within a single sentence** - without a clear he/she marker, the model does not connect gender-specific words across the sentence.
 
 > **EN:** I am a woman and I am proud of it.
 > **Model:** Jestem kobietą i jestem z tego **dumny**.
@@ -18,9 +18,9 @@ In Polish, verbs, adjectives, and participles need to match the subject's gender
 
 > **EN:** If I had known about the problem earlier, I would have fixed it.
 > **Model:** Gdybym **wiedziała** wcześniej o problemie, **naprawiłbym** go.
-> ***Expected:*** ambiguous speaker gender — but should at least be internally consistent, not mixed (feminine *wiedziała* / masculine *naprawiłbym*)
+> ***Expected:*** ambiguous speaker gender, but should at least be internally consistent, not mixed (feminine *wiedziała* / masculine *naprawiłbym*)
 
-**2. Proper names treated as gender-neutral tokens** — Polish names carry strong gender information (Anna = female, John = male), but the model cannot reliably associate a name with a gender.
+**2. Proper names treated as gender-neutral tokens** - Polish names carry strong gender information (Anna = female, John = male), but the model cannot reliably associate a name with a gender.
 
 > **EN:** John gave Mary a book.
 > **Model:** John **dała** mary książkę.
@@ -42,15 +42,15 @@ In Polish, verbs, adjectives, and participles need to match the subject's gender
 > **Model:** **Nauczyciel** poprosił jej studentów, by **usiadła**.
 > ***Expected:*** **Nauczycielka** poprosiła swoich uczniów, żeby usiedli.
 
-**3. First-person sentences without gender context** — when there is no he/she or name to infer gender from, the output gender is unpredictable, reflecting training data distribution rather than any actual decision.
+**3. First-person sentences without gender context** - when there is no he/she or name to infer gender from, the output gender is unpredictable, reflecting training data distribution rather than any actual decision.
 
 > **EN:** I have never been to Paris.
 > **Model:** Nigdy nie **byłam** w paryżu.
-> ***Expected:*** ambiguous — depends on the speaker
+> ***Expected:*** ambiguous, depends on the speaker
 
 > **EN:** I decided to quit my job.
 > **Model:** Postanowi**łem** przestać wykonywać swoją pracę.
-> ***Expected:*** ambiguous — but should at least be consistent with the sentence above
+> ***Expected:*** ambiguous, but should at least be consistent with the sentence above
 
 <br/>
 
@@ -94,7 +94,7 @@ predicter.translate_snt("I shouldn't be here.", 'm')
 > 'Nie powinienem tu zostać.'
 ```
 
-However, the model struggles with sentences where grammatical gender is not expressed in Polish. Since it always receives an explicit gender signal, it tends to overuse gender-specific forms even in contexts where Polish naturally stays neutral — likely due to the lack of gender-conditioned examples where the form should remain unspecified.
+However, the model struggles with sentences where grammatical gender is not expressed in Polish. Since it always receives an explicit gender signal, it tends to overuse gender-specific forms even in contexts where Polish naturally stays neutral, likely due to the lack of gender-conditioned examples where the form should remain unspecified.
 
 ```python
 predicter.translate_snt("I want to talk to you.", 'f')
@@ -123,7 +123,7 @@ Due to limitations in the current training data structure, the model struggles w
 
 <br/>
 
-## Solution v2 — Refined Data & Scaling
+## Solution v2 
 
 Building on v1, the extraction was rerun over a much larger slice of the *OpenSubtitles* corpus with stricter edge-case handling, yielding a far cleaner and bigger set:
 
@@ -206,7 +206,7 @@ Na: 'Poszedłem do sklepu, kupić chleb i wróciła do domu.'
 
 ## Solution v3 — Extending to the Addressee (Second Person)
 
-v1 and v2 only condition on the *speaker's* gender. But Polish grammar marks the *addressee* too — second-person verb forms and pronouns differ by the listener's gender and by formality (*pan/pani*, plural *wy*). Ignoring this leaves half of the agreement problem unsolved.
+v1 and v2 only condition on the *speaker's* gender. But Polish grammar marks the *addressee* too - second-person verb forms and pronouns differ by the listener's gender and by formality (*pan/pani*, plural *wy*). Ignoring this leaves half of the agreement problem unsolved.
 
 Building on the same *OpenSubtitles* corpus, a second, parallel extraction pass pulled out second-person sentences (containing *you*) and classified them by the grammatical form of address — verb endings (e.g. *-łaś/-łeś*), *pan/pani* forms, and plural/formal *wy*-forms — using the same suffix-pattern approach as the self-reference extraction in v1.
 
