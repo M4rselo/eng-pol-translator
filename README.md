@@ -1,6 +1,6 @@
 # Gender Context English-Polish Translator
 
-A Transformer English → Polish translator trained from zero in *PyTorch* (no pre-trained weights, no external tokenizers or NLP libraries) - with explicit control over the speaker's and addressee's gender and number in the Polish output.
+A Transformer English-Polish translator trained from zero in *PyTorch* (no pre-trained weights, no external tokenizers or NLP libraries) - with explicit control over the speaker's and addressee's gender and number in the Polish output.
 
 ---
 
@@ -107,11 +107,10 @@ lives outside the English input, it can be changed without touching a single wor
 ### 2. Labelling the data by grammar
 ---
 No gender-annotated English-Polish corpus exists, so the labels were derived from the Polish side of *OpenSubtitles*. First and second-person sentences
-were classified by their grammatical endings - *-łam / -łem*, *-łabym / -łbym* for the speaker, *-łaś / -łeś*, *pan / pani* and *wy*-forms for the
-listener, with additional sentence-structure checks to filter out false matches.
+were mainly classified by their grammatical endings e.g., *-łam / -łem*, *-łabym / -łbym*, *jestem -na / -ny*, etc. for the speaker, *-łaś / -łeś*, *pan / pani*, *jesteś -na / -ny* and *-ście*, *wy*-forms for the listener with additional sentence-structure checks to filter out false matches.
 
 The first-person extraction alone produced **~68k feminine** and **~161k masculine** sentences. The imbalance was even stronger for profession nouns
-(*jestem lekarzem*, *jestem nauczycielem*), so a large set of them was converted to feminine forms (*lekarzem → lekarką*, *prawnikiem → prawniczką*),
+(*jestem lekarzem*, *jestem nauczycielem*), so a large set of them was converted to feminine forms (*lekarzem -> lekarką*, *prawnikiem -> prawniczką*),
 teaching the model the feminine forms the raw subtitles barely contain - while the original masculine sentence is kept too, so the same English sentence appears with both targets (a form of
 *counterfactual data augmentation*, cf. Zmigrod et al., 2019). <br>
 
@@ -127,11 +126,11 @@ Most sentences don't express gender at all, e.g., *Lubię chodzić do kina.* (*I
 - an early version translated *"I want to talk to you."* with `<self_f>` as *"Chciałam z tobą porozmawiać"* (past tense, just to make it feminine).
 
 The fix is a **reference-token augmentation** applied on the fly during training *(translator-v1_5)*. Every corpus row gets one of three labels per role:
-a detected gender, `NA` (a first- or second-person sentence whose Polish form carries no gender, ~313k speaker / ~263k listener rows in the
+a detected gender, `NA` (a first or second-person sentence whose Polish form carries no gender, ~313k speaker / ~263k listener rows in the
 training sample) or `NA_OTHER` (no first/second person at all). For `NA` rows the context token is re-drawn every time the sample is loaded -
-`<self_f>`, `<self_m>` or `<self_na>` for the speaker and `<addr_f>`, `<addr_m>` or `<addr_na>` for the listener - while the Polish target stays
+`<self_f>`, `<self_m>` or `<self_na>` for the speaker and `<addr_f>`, `<addr_m>` or `<addr_na>` for the listener, while the Polish target stays
 the same. The model therefore sees the same neutral sentence under different tokens and learns that the token should only matter when
-Polish actually has a choice to make. `NA_OTHER` rows always keep `<self_na>` / `<addr_na>`, and `<addr_p>` is never drawn by the augmentation.
+Polish actually has a choice to make. `NA_OTHER` rows always keep `<self_na>` / `<addr_na>`. Since `<addr_p>` is plural based, it is never drawn by the augmentation.
 
 ---
 
@@ -175,14 +174,14 @@ every single output is in [`eval_outputs.csv`](research/results/eval_outputs.csv
 
 </div>
 
-**What this shows.** The augmentation in v1_5 did what it was designed for: on first-person sentences that have no gendered form in Polish,
+**Summary.** The augmentation in v1_5 did what it was designed for: on first-person sentences that have no gendered form in Polish,
 the output stays the same regardless of the speaker token in 74.5% of cases (48.0% for v1_4), and wrongly introduced gendered forms drop
 from 12.5% to 6.5%. General translation quality is unchanged.
 
-It came at a cost. Explicit control got weaker - clearly for the addressee (73/72% → 62/63%), within noise for the speaker - and the `na`
+However, it came at a cost. Explicit control got weaker - clearly for the addressee (73/72% -> 62/63%), within noise for the speaker - and the `na`
 tokens changed meaning: given `<self_na>` on a sentence that needs a gender, v1_4 avoids gendered forms in 86% of cases, while v1_5 picks one
 in ~63%, slightly more often feminine. My interpretation is that pairing the f/m tokens with neutral targets also taught the model that the
-tokens can sometimes be ignored. Tuning how often the augmentation fires is the obvious next experiment.
+tokens can sometimes be ignored (tuning the augmentation rate would be the obvious next experiment).
 
 In roughly a third of cases the output contains no form the detector recognises - this can be a valid paraphrase (e.g. present tense)
 or a mistake; [`eval_outputs.csv`](research/results/eval_outputs.csv) has every output for inspection.
@@ -249,8 +248,8 @@ checkpoint is present in `appdata/checkpoints/` are shown.
 ---
 ## Under the hood
 
-No pre-trained weights and no external tokenizers. The Transformer building blocks (attention, encoder/decoder blocks, positional encoding)
-are adapted from the textbook [*Dive into Deep Learning*](https://d2l.ai); on top of that the project adds its own BPE tokenizer, data
+No pre-trained weights and no external tokenizers were used. The Transformer building blocks (attention, encoder/decoder blocks, positional encoding)
+are adapted from the textbook [*Dive into Deep Learning*](https://d2l.ai); on top of that this project adds its own BPE tokenizer, data
 pipeline, reference-token conditioning (prefix tokens excluded from the loss), a positional-encoding offset for cached decoding, beam search
 with a KV cache, mixed-precision training and the web demo.
 
@@ -258,8 +257,8 @@ with a KV cache, mixed-precision training and the web demo.
 
 | Component | Details |
 |---|---|
-| **Tokenizer** | Own Byte Pair Encoding (incremental pair counts + lazy-deletion heap), trained separately for English (36k) and Polish (54k) |
-| **Model** | Encoder-decoder Transformer - 4 + 4 blocks, 8 heads, `d_model` 512, FFN 1024, dropout 0.3 (~95M parameters) |
+| **Tokenizer** | Own Byte Pair Encoding with switch logic (incremental pair counts + lazy-deletion heap), trained separately for English (36k) and Polish (54k) |
+| **Model** | Encoder-decoder Transformer: 4 + 4 blocks, 8 heads, `d_model` 512, FFN 1024, dropout 0.3 (~95M parameters) |
 | **Training** | ~1.35M sentence pairs (+150k validation), Adam (lr 1e-4), batch 64, mixed precision, gradient clipping |
 | **Inference** | Beam search (k = 5) with length penalty (α = 0.6) and decoder cache |
 
@@ -270,7 +269,9 @@ checkpoint choice in [`research/epoch_selection.ipynb`](research/epoch_selection
 
 ## Limitations
 
-This is a from-scratch model trained on movie subtitles, and it shows. Some known issues:
+This is a from-scratch model trained on movie subtitles, and it shows.
+
+- **Short sentences only.** The model was trained on sequences of up to 27 tokens; longer inputs are truncated.
 
 - **`<self_na>` isn't fully neutral.** When the speaker's gender is unspecified, the model tends to lean towards feminine forms, or picks up a gender from
 the listener token instead of staying neutral:
@@ -282,21 +283,65 @@ the listener token instead of staying neutral:
 -│ [PL]  >> Jestem nauczycielką.
 ─┴──────────────────────────────────────────────────────
 ```
+<br>
 
-- **Plural addressees are fragile.** Sentences addressed to a group only come out reliably when `<addr_p>` is set explicitly - and even then, the plural
-form doesn't always carry through the whole sentence.
+- **Plural addressees are fragile.** Sentences addressed to a group only come out reliably when `<addr_p>` is set explicitly, and even then, the plural
+form doesn't always carry through the whole sentence. Additionally, due to the limited data set for plural sentences, the translation is of noticeably lower quality.
+
+```diff
+─┬─ Translator-v1_5 ────────────────────────────────────
+ │ [EN]  >> You guys look fantastic.
+ │ [TOK] >> speaker: <self_na> · listener: <addr_na>
+-│ [PL]  >> Wyglądasz fantastycznie.
+─┴──────────────────────────────────────────────────────
+ │ [EN]  >> Do you all live in the same city?
+ │ [TOK] >> speaker: <self_na> · listener: <addr_p>
+-│ [PL]  >> Wszyscy mieszkasz w tym samym mieście?
+─┴──────────────────────────────────────────────────────
+```
+<br>
+
 - **Subtitle-style Polish.** The training data is mostly casual dialogue, so formal or technical text often comes out simplified or awkward.
-- **Short sentences only.** The model was trained on sequences of up to 27 tokens; longer inputs are truncated.
-- **Lowercase only.** Text is lowercased before tokenization, so the output is lowercase apart from the first letter (*w paryżu*, *mary*).
-- **Known training-pipeline issues** (fixed in code, the published checkpoints predate the fixes): the training data was not deduplicated and the
-training `DataLoader` did not reshuffle between epochs.
+
+```diff
+─┬─ Translator-v1_5 ───────────────────────────────────────────────────────────────────────
+ │ [EN]  >> The primary objective of this project is to enhance operational efficiency
+ |          across all departments.
+ │ [TOK] >> speaker: <self_na> · listener: <addr_na>
+-│ [PL]  >> Głównym celem tego projektu jest zwiększyć produktywność przez wszystkie działy.
+─┴──────────────────────────────────────────────────────────────────────────────────────────
+```
+<br>
+
+- **No tolerance for typos*** Since the model was not trained with typo augmentation, a single typo can completely creak the translation.
+
+```diff
+─┬─ Translator-v1_5 ─────────────────────────────────────
+ │ [EN]  >> My grandfathr died when I was eight.
+ │ [TOK] >> speaker: <self_m> · listener: <addr_na>
+-│ [PL]  >> Moja grandfar zmarła, kiedy miałem osiem lat.
+─┴───────────────────────────────────────────────────────
+```
+<br>
+
+- **Lowercase only.** Text is lowercased before tokenization, so the output is lowercase apart from the first letter.
+
+```diff
+─┬─ Translator-v1_5 ──────────────────────────────────────────
+ │ [EN]  >> My name is John and I have recently been to Paris.
+ │ [TOK] >> speaker: <self_m> · listener: <addr_na>
+-│ [PL]  >> Nazywam się john i byłem ostatnio w paryżu.
+─┴────────────────────────────────────────────────────────────
+```
+<br>
 
 ### What I would do next
 
 - Tune the augmentation rate (e.g. re-draw the token for only part of the `NA` rows) to keep the neutral-sentence stability of v1_5 without losing the explicit control of v1_4.
-- Extend the counterfactual augmentation from profession nouns to verbs (*-łem ↔ -łam*) to balance the 68k / 161k speaker split.
-- Tie the decoder embedding with the output layer (~27M fewer parameters) and try smaller BPE vocabularies.
-- Add label smoothing and learning-rate warmup, deduplicate the corpus, store tokenizers as JSON instead of pickles.
+- Add the typo augmentation: randomly inject character-level noise (swapped, dropped or doubled letters) for most commonly misspelled words.
+- Extend the dataset for the plural addressee (`<addr_p>`).
+- Extend the counterfactual augmentation from profession nouns to verbs (*-łem <-> -łam*) to balance the 68k / 161k speaker split.
+- Add label smoothing and learning-rate warmup, deduplicate the corpus.
 
 
 ---
