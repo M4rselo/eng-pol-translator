@@ -1,34 +1,3 @@
-"""
-Gender-control evaluation on a clean held-out set (inference only, no retraining).
-
-Run from the repo root:
-
-    python research/evaluate_gender.py \
-        --data local_data/translator_v2/data_final_opensub.pkl \
-        --versions v1_4 v1_5 --n 200
-
-What it does
-------------
-1. Reproduces the exact training sample of every evaluated version
-   (same tokenizers, same length trimming, same `sample(1_500_000, random_state=42)`
-   as in research/training_notebooks/training-translator-v1_[45].ipynb) and prints
-   sanity checks against the numbers logged in those notebooks.
-2. Builds a held-out set from rows that were never sampled for training, then also
-   drops every row whose English or Polish text occurs anywhere in a training sample
-   (OpenSubtitles has many exact duplicates).
-3. Measures what the project actually claims, using simple morphological detectors
-   (past-tense / conditional endings):
-     A. speaker control   - does <self_f>/<self_m> produce feminine/masculine forms?
-     B. neutral stability - on first-person sentences with no gendered form in the
-                            reference, does the output stay the same for f/m/na?
-     C. addressee control - does <addr_f>/<addr_m>/<addr_p> produce the right forms?
-     D. general quality   - corpus chrF / BLEU (sacrebleu, lowercased), if installed.
-4. Writes research/results/eval_summary.md (+ JSON metrics and a CSV with every output).
-
-Detector caveat: only forms like -łam/-łem, -łabym/-łbym, -łaś/-łeś, -liście/-łyście
-are detected. Test sentences are filtered so that the reference contains such a form,
-which makes the numbers measurable but biased towards past tense / conditional.
-"""
 import argparse
 import csv
 import json
